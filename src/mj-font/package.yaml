@@ -21,6 +21,19 @@ description: Please see the README on GitHub at <https://github.com/githubuser/m
 
 dependencies:
   - base >= 4.7 && < 5
+  - Cabal
+  - megaparsec
+  - parser-combinators
+  - text
+  - vector
+  - containers
+  - cassava
+  - bytestring
+  - unordered-containers
+  - lens
+  - mtl
+  - hspec
+  - raw-strings-qq
 
 library:
   source-dirs: src
@@ -46,3 +59,6 @@ tests:
       - -with-rtsopts=-N
     dependencies:
       - mj-font
+
+default-extensions:
+  - OverloadedStrings
