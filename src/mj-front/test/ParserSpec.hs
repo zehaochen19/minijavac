@@ -70,3 +70,47 @@ expressionPSpec =
                   (EParen (EBinary BPlus (EInt 3) (EInt 4)))
                   (EInt 2))
                (EParen (EBinary BPlus (EInt 5) (EId (Identifier "count")))))))
+
+statementPSpec :: Spec
+statementPSpec =
+  describe "Statement parser should parse" $ do
+    it "a print statement" $
+      parse statementP "" "System.out.println(1 + 2);" `shouldBe`
+      (Right $ SPrint (EBinary BPlus (EInt 1) (EInt 2)))
+    it "a if assignment" $
+      parse statementP "" "a = 4;" `shouldBe`
+      (Right $ SAssignId (Identifier "a") (EInt 4))
+    it "an array assignment" $
+      parse statementP "" "arr[4] = 1 + 2;" `shouldBe`
+      (Right $
+       SAssignArr (Identifier "arr") (EInt 4) (EBinary BPlus (EInt 1) (EInt 2)))
+    it "an while statement" $
+      parse statementP "" "while (a < 10) { a = a - 1; }" `shouldBe`
+      (Right $
+       SWhile
+         (EBinary BLT (EId (Identifier "a")) (EInt 10))
+         (SBlock
+            [ SAssignId
+                (Identifier "a")
+                (EBinary BMinus (EId (Identifier "a")) (EInt 1))
+            ]))
+    it "an if statement" $
+      parse statementP "" "if (x) { a = 1; } else { b = 2; }" `shouldBe`
+      (Right $
+       SIf
+         (EId $ Identifier "x")
+         (SBlock [SAssignId (Identifier "a") (EInt 1)])
+         (SBlock [SAssignId (Identifier "b") (EInt 2)]))
+
+varDecPSpec :: Spec
+varDecPSpec =
+  describe "VarDec parser should parse" $ do
+    it "a int declaration" $
+      parse varDecP "" "int a;" `shouldBe`
+      (Right $ VarDec TInt (Identifier "a"))
+    it "a boolean declaration" $
+      parse varDecP "" "boolean flag;" `shouldBe`
+      (Right $ VarDec TBool (Identifier "flag"))
+    it "a int array declaration" $
+      parse varDecP "" "int[] arr;" `shouldBe`
+      (Right $ VarDec TIntArray (Identifier "arr"))

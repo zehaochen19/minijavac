@@ -1,6 +1,7 @@
 module MiniJava.Parser where
 
 import Control.Monad.Combinators.Expr
+import Data.Functor (($>))
 import qualified Data.Set as S
 import Data.Text (Text)
 import Data.Text as T
@@ -66,6 +67,8 @@ reversed =
     , "return"
     ]
 
+-- Identifiers should start with [0..] underscores and an alphabet
+-- and shouldn't be a reserved keyword
 identifierP :: Parser Identifier
 identifierP = (lexeme . try) (p >>= check) <?> "Ideintifier"
   where
@@ -98,10 +101,8 @@ basicExpressionP =
   where
     newObjectP =
       ENewObj <$> do
-        _ <- symbol "new"
-        idt <- identifierP
-        symbol "("
-        symbol ")"
+        idt <- symbol "new" >> identifierP
+        symbol "(" >> symbol ")"
         return idt
     newArrayP =
       ENewIntArr <$> (symbol "new" >> symbol "int" >> bracket expressionP)
@@ -127,8 +128,7 @@ operatorP =
     arrayLenP :: Parser (Expression -> Expression)
     arrayLenP =
       try $ do
-        dotP
-        symbol "length"
+        dotP >> symbol "length"
         return $ \expr -> EArrayLength expr
     methodP :: Parser (Expression -> Expression)
     methodP =
@@ -137,3 +137,56 @@ operatorP =
         idt <- identifierP
         argList <- expressionListP
         return $ \expr -> EMethodApp expr idt argList
+
+typeP :: Parser Type
+typeP =
+  try intArrP <|> (TInt <$ symbol "int") <|> (TBool <$ symbol "boolean") <|>
+  (TClass <$> identifierP)
+  where
+    intArrP = symbol "int" *> symbol "[" *> symbol "]" $> TIntArray
+
+typeIdtPairP :: Parser (Type, Identifier)
+typeIdtPairP = do
+  t <- typeP
+  idt <- identifierP
+  return (t, idt)
+
+varDecP :: Parser VarDec
+varDecP = do
+  (t, idt) <- typeIdtPairP
+  semiP
+  return $ VarDec t idt
+
+statementP :: Parser Statement
+statementP =
+  label "Statement" $
+  printP <|> try assignP <|> try arrayAssignP <|> ifP <|> whileP <|> blockStmtP
+  where
+    ifP = do
+      symbol "if"
+      predicate <- paren expressionP
+      bodyClause <- statementP
+      symbol "else"
+      SIf predicate bodyClause <$> statementP
+    whileP = do
+      symbol "while"
+      predicate <- paren expressionP
+      SWhile predicate <$> statementP
+    printP = do
+      symbol "System.out.println"
+      expr <- paren expressionP
+      semiP
+      return $ SPrint expr
+    assignP = do
+      idt <- identifierP
+      SAssignId idt <$> assignTail
+    arrayAssignP = do
+      idt <- identifierP
+      idx <- bracket expressionP
+      SAssignArr idt idx <$> assignTail
+    blockStmtP = SBlock <$> (block . many) statementP
+    assignTail = do
+      symbol "="
+      expr <- expressionP
+      semiP
+      return expr

@@ -2,4 +2,9 @@ import ParserSpec
 import Test.Hspec
 
 main :: IO ()
-main = hspec identifierPSpec
+main =
+  hspec $ do
+    identifierPSpec
+    expressionPSpec
+    varDecPSpec
+    statementPSpec
