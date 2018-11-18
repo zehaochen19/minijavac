@@ -3,3 +3,4 @@ mj-font.cabal
 *~
 ghcid.txt
 .ghci
+.DS_Store
