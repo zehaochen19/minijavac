@@ -1,3 +1,5 @@
 .stack-work/
 mj-font.cabal
 *~
+ghcid.txt
+.ghci
