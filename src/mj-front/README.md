@@ -1,3 +1,3 @@
-# mj-font
+# mj-front
 
 Front end part of minijavac

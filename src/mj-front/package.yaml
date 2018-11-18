@@ -39,7 +39,7 @@ library:
   source-dirs: src
 
 executables:
-  mj-font-exe:
+  mj-front-exe:
     main: Main.hs
     source-dirs: app
     ghc-options:
@@ -47,10 +47,10 @@ executables:
       - -rtsopts
       - -with-rtsopts=-N
     dependencies:
-      - mj-font
+      - mj-front
 
 tests:
-  mj-font-test:
+  mj-front-test:
     main: Spec.hs
     source-dirs: test
     ghc-options:
@@ -58,7 +58,7 @@ tests:
       - -rtsopts
       - -with-rtsopts=-N
     dependencies:
-      - mj-font
+      - mj-front
 
 default-extensions:
   - OverloadedStrings
