@@ -1,3 +1,6 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
+
 module ParserSpec where
 
 import Data.Either
@@ -5,6 +8,7 @@ import MiniJava.Parser
 import MiniJava.Symbol
 import Test.Hspec
 import Text.Megaparsec
+import Text.RawString.QQ
 
 identifierPSpec :: Spec
 identifierPSpec =
@@ -114,3 +118,52 @@ varDecPSpec =
     it "a int array declaration" $
       parse varDecP "" "int[] arr;" `shouldBe`
       (Right $ VarDec TIntArray (Identifier "arr"))
+
+methodDecPSpec :: Spec
+methodDecPSpec =
+  describe "MethodDec parser should parse" $ do
+    it "a method declaration" $
+      parse
+        (sc >> methodDecP)
+        ""
+        [r|
+              public int func(int a) {
+                int b;
+                b = a + 1;
+                return b;
+              }
+                    |] `shouldBe`
+      (Right $
+       MethodDec
+         TInt
+         (Identifier "func")
+         [(TInt, Identifier "a")]
+         [VarDec TInt (Identifier "b")]
+         [ SAssignId
+             (Identifier "b")
+             (EBinary BPlus (EId $ Identifier "a") (EInt 1))
+         ]
+         (EId $ Identifier "b"))
+    it "another method declaration" $
+      parse
+        (sc >> methodDecP)
+        ""
+        "public int setValue(int a) { value = a; return value; }" `shouldBe`
+      (Right $
+       MethodDec
+         TInt
+         (Identifier "setValue")
+         [(TInt, Identifier "a")]
+         []
+         [SAssignId (Identifier "value") (EId $ Identifier "a")]
+         (EId $ Identifier "value"))
+    it "a method containing a single return" $
+      parse methodDecP "" "public int getValue() { return value; }" `shouldBe`
+      (Right $
+       MethodDec
+         TInt
+         (Identifier "getValue")
+         []
+         []
+         []
+         (EId $ Identifier "value"))

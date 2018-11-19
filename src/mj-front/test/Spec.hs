@@ -8,3 +8,4 @@ main =
     expressionPSpec
     varDecPSpec
     statementPSpec
+    methodDecPSpec

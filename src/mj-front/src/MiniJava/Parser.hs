@@ -190,3 +190,20 @@ statementP =
       expr <- expressionP
       semiP
       return expr
+
+methodDecP :: Parser MethodDec
+methodDecP = do
+  symbol "public"
+  t <- typeP
+  idt <- identifierP
+  argList <- argListP
+  symbol "{"
+  vs <- many $ try varDecP
+  ss <- many $ try statementP
+  symbol "return"
+  result <- expressionP
+  semiP
+  symbol "}"
+  return $ MethodDec t idt argList vs ss result
+  where
+    argListP = paren $ sepBy typeIdtPairP commaP
