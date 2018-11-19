@@ -82,15 +82,14 @@ identifierP = (lexeme . try) (p >>= check) <?> "Ideintifier"
         else return $ Identifier x
 
 expressionListP :: Parser [Expression]
-expressionListP = paren $ sepBy expressionP commaP
+expressionListP = label "List of Expressions" $ paren $ sepBy expressionP commaP
 
 expressionP :: Parser Expression
-expressionP = makeExprParser basicExpressionP operatorP
+expressionP = label "Expression" $ makeExprParser basicExpressionP operatorP
 
 -- Unambiguous parts of Expressions
 basicExpressionP :: Parser Expression
 basicExpressionP =
-  label "Terminal Expression" $
   (ETrue <$ symbol "true") <|> (EFalse <$ symbol "false") <|>
   (EInt <$> integerP) <|>
   (EParen <$> paren expressionP) <|>
@@ -140,6 +139,7 @@ operatorP =
 
 typeP :: Parser Type
 typeP =
+  label "Type" $
   try intArrP <|> (TInt <$ symbol "int") <|> (TBool <$ symbol "boolean") <|>
   (TClass <$> identifierP)
   where
@@ -152,10 +152,11 @@ typeIdtPairP = do
   return (t, idt)
 
 varDecP :: Parser VarDec
-varDecP = do
-  (t, idt) <- typeIdtPairP
-  semiP
-  return $ VarDec t idt
+varDecP =
+  label "Variable Declaration" $ do
+    (t, idt) <- typeIdtPairP
+    semiP
+    return $ VarDec t idt
 
 statementP :: Parser Statement
 statementP =
@@ -192,18 +193,19 @@ statementP =
       return expr
 
 methodDecP :: Parser MethodDec
-methodDecP = do
-  symbol "public"
-  t <- typeP
-  idt <- identifierP
-  argList <- argListP
-  symbol "{"
-  vs <- many $ try varDecP
-  ss <- many $ try statementP
-  symbol "return"
-  result <- expressionP
-  semiP
-  symbol "}"
-  return $ MethodDec t idt argList vs ss result
+methodDecP =
+  label "Method Declaration" $ do
+    symbol "public"
+    t <- typeP
+    idt <- identifierP
+    argList <- argListP
+    symbol "{"
+    vs <- many $ try varDecP
+    ss <- many $ try statementP
+    symbol "return"
+    result <- expressionP
+    semiP
+    symbol "}"
+    return $ MethodDec t idt argList vs ss result
   where
     argListP = paren $ sepBy typeIdtPairP commaP
