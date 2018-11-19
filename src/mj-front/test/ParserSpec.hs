@@ -4,6 +4,7 @@
 module ParserSpec where
 
 import Data.Either
+import qualified Data.Text.IO as TIO
 import MiniJava.Parser
 import MiniJava.Symbol
 import Test.Hspec
@@ -167,3 +168,89 @@ methodDecPSpec =
          []
          []
          (EId $ Identifier "value"))
+
+mainClassDecPSpec :: Spec
+mainClassDecPSpec =
+  describe "Main class parser should parse" $ do
+    it "a main class declaration" $
+      parse
+        (sc >> mainClassDecP)
+        ""
+        [r|
+      class Main {
+        public static void main(String [] args) {
+          System.out.println(1);
+        }
+      }
+      |] `shouldBe`
+      (Right $
+       MainClass (Identifier "Main") (Identifier "args") (SPrint (EInt 1)))
+    it "another main class declaration" $
+      parse
+        (sc >> mainClassDecP)
+        ""
+        [r|
+          class QuickSort{
+            public static void main(String[] a){
+	      System.out.println(new QS().Start(10));
+            }
+          }|] `shouldBe`
+      (Right $
+       MainClass
+         (Identifier "QuickSort")
+         (Identifier "a")
+         (SPrint
+            (EMethodApp
+               (ENewObj $ Identifier "QS")
+               (Identifier "Start")
+               [EInt 10])))
+
+classDecPSpec :: Spec
+classDecPSpec =
+  describe "Class declaration parser should parse" $
+  it "a class declaration" $
+  parse
+    (sc >> classDecP)
+    ""
+    [r|
+        class Node extends AbstractNode {
+          int value;
+          boolean flag;
+
+          public int getValue() { return value; }
+          public int setValue(int a) { value = a; return value; }
+        }
+        |] `shouldBe`
+  (Right $
+   ClassDec
+     (Identifier "Node")
+     (Just $ Identifier "AbstractNode")
+     [VarDec TInt $ Identifier "value", VarDec TBool $ Identifier "flag"]
+     [ MethodDec
+         TInt
+         (Identifier "getValue")
+         []
+         []
+         []
+         (EId $ Identifier "value")
+     , MethodDec
+         TInt
+         (Identifier "setValue")
+         [(TInt, Identifier "a")]
+         []
+         [SAssignId (Identifier "value") (EId $ Identifier "a")]
+         (EId $ Identifier "value")
+     ])
+
+testWithSrc :: FilePath -> IO ()
+testWithSrc srcPath = do
+  program <- TIO.readFile srcPath
+  let result = parse miniJavaP srcPath program
+  print result
+  result `shouldSatisfy` isRight
+
+miniJavaPSpec :: Spec
+miniJavaPSpec =
+  describe "MiniJava parser should parse" $ do
+    it "a LinkedList program" $ testWithSrc "test/cases/LinkedList.java"
+    it "a BinaryTree program" $ testWithSrc "test/cases/BinaryTree.java"

@@ -65,6 +65,7 @@ reversed =
     , "new"
     , "this"
     , "return"
+    , "extends"
     ]
 
 -- Identifiers should start with [0..] underscores and an alphabet
@@ -209,3 +210,37 @@ methodDecP =
     return $ MethodDec t idt argList vs ss result
   where
     argListP = paren $ sepBy typeIdtPairP commaP
+
+mainClassDecP :: Parser MainClass
+mainClassDecP =
+  label "Main Class Declaration" $ do
+    symbol "class"
+    clsName <- identifierP
+    symbol "{" >> symbol "public" >> symbol "static" >> symbol "void" >>
+      symbol "main"
+    argsName <-
+      paren $ symbol "String" >> symbol "[" >> symbol "]" >> identifierP
+    symbol "{"
+    body <- statementP
+    symbol "}" >> symbol "}"
+    return $ MainClass clsName argsName body
+
+classDecP :: Parser ClassDec
+classDecP =
+  label "Class Declaration" $ do
+    symbol "class"
+    clsName <- identifierP
+    superClass <- optional $ try $ symbol "extends" >> identifierP
+    symbol "{"
+    vars <- many $ try varDecP
+    mets <- many $ try methodDecP
+    symbol "}"
+    return $ ClassDec clsName superClass vars mets
+
+miniJavaP :: Parser MiniJavaAST
+miniJavaP = do
+  sc
+  mc <- mainClassDecP
+  clss <- many classDecP
+  eof
+  return $ MiniJavaAST mc clss

@@ -9,3 +9,6 @@ main =
     varDecPSpec
     statementPSpec
     methodDecPSpec
+    mainClassDecPSpec
+    classDecPSpec
+    miniJavaPSpec
