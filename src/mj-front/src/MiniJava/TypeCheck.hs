@@ -143,4 +143,14 @@ checkOrError expectedType actualType symbol =
     else typeError expectedType actualType symbol
 
 checkExpr :: Monad m => S.Expression -> TC m S.Type
-checkExpr = undefined
+checkExpr S.ETrue = return S.TBool
+checkExpr S.EFalse = return S.TBool
+checkExpr (S.EInt _) = return S.TInt
+checkExpr (S.EParen expr) = checkExpr expr
+checkExpr (S.EId idtf) = findVarType idtf
+checkExpr S.EThis = do
+  maybeCls <- use curClass
+  case maybeCls of
+    Nothing ->
+      addError "Not in a class scope when using `this`" >> return S.TBottom
+    Just clsIdtf -> return $ S.TClass clsIdtf
