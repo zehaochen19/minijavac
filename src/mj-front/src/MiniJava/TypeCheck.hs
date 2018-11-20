@@ -95,12 +95,15 @@ findVarType i = do
                     Just c -> findInClassScope i c
 
 checkStatement :: Monad m => S.Statement -> TC m ()
+-- Block
 checkStatement (S.SBlock stmts) = mapM_ checkStatement stmts
+-- If
 checkStatement (S.SIf pred trueBranch falseBranch) = do
   checkPred pred
   checkStatement trueBranch
   checkStatement falseBranch
   return ()
+-- While
 checkStatement (S.SWhile pred stmt) = checkPred pred >> checkStatement stmt
 checkStatement (S.SPrint expr) = do
   ty <- checkExpr expr
@@ -109,8 +112,9 @@ checkStatement (S.SPrint expr) = do
     S.TInt -> return ()
     _ ->
       addError $
-      "Expression: " ++
-      show expr ++ "\n with type: " ++ show ty ++ " cannot be printed"
+      "Expression: `" ++
+      show expr ++ "`\nwith type: `" ++ show ty ++ "` cannot be printed"
+-- Identifer Assignment
 checkStatement (S.SAssignId idtf expr) = do
   tyExpr <- checkExpr expr
   tyIdtf <- findVarType idtf
@@ -119,11 +123,24 @@ checkStatement (S.SAssignId idtf expr) = do
     else addError $
          "Cannot match expected type `" ++
          show tyExpr ++
-         "`\n" ++
-         "with actual type `" ++
+         "`\nwith actual type `" ++
          show tyIdtf ++
          "`\nIn assigning: " ++
-         "`" ++ show idtf ++ "`\n" "with `" ++ show expr ++ "`"
+         "`" ++ show idtf ++ "`\nwith `" ++ show expr ++ "`"
+-- Int Array Assignment
+checkStatement (S.SAssignArr idtf idxExpr expr) = do
+  tyIdtf <- findVarType idtf
+  tyIdx <- checkExpr idxExpr
+  tyExpr <- checkExpr expr
+  checkOrError S.TIntArray tyIdtf idtf
+  checkOrError S.TInt tyIdx idxExpr
+  checkOrError S.TInt tyExpr expr
+
+checkOrError :: (Show a, Monad m) => S.Type -> S.Type -> a -> TC m ()
+checkOrError expectedType actualType symbol =
+  if expectedType == actualType
+    then return ()
+    else typeError expectedType actualType symbol
 
 checkExpr :: Monad m => S.Expression -> TC m S.Type
 checkExpr = undefined
