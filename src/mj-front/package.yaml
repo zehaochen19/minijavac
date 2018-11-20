@@ -62,3 +62,4 @@ tests:
 
 default-extensions:
   - OverloadedStrings
+  - ScopedTypeVariables

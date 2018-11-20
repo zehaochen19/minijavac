@@ -63,3 +63,5 @@ type TC m = StateT SymbolTable m
 type TC' = State SymbolTable
 
 makeLenses ''SymbolTable
+
+makeLenses ''ClassInfo
