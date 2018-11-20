@@ -55,9 +55,9 @@ initClassScope classDec = do
       fmap (\v -> (v ^. S.varId, v ^. S.varType)) (classDec ^. S.classVars)
     metDecs = fmap (\m -> (m ^. S.methodId, m)) (classDec ^. S.methods)
 
-checkStatement :: Monad m => S.Statement -> TC m ()
-checkStatement (S.SBlock stmts) = mapM_ checkStatement stmts
-checkStatement (S.SIf pred trueBranch falseBranch) = do
+-- Check the predicate in `while` and `if`
+checkPred :: Monad m => S.Expression -> TC m ()
+checkPred pred = do
   predType <- checkExpr pred
   _ <-
     case predType of
@@ -68,9 +68,35 @@ checkStatement (S.SIf pred trueBranch falseBranch) = do
         T.pack $
         "Predicate expression: " ++
         show pred ++ "\nExpected type: TBool" ++ "\nBut has: " ++ show ty
+  return ()
+
+checkStatement :: Monad m => S.Statement -> TC m ()
+checkStatement (S.SBlock stmts) = mapM_ checkStatement stmts
+checkStatement (S.SIf pred trueBranch falseBranch) = do
+  checkPred pred
   checkStatement trueBranch
   checkStatement falseBranch
   return ()
+checkStatement (S.SWhile pred stmt) = checkPred pred >> checkStatement stmt
+checkStatement (S.SPrint expr) = do
+  ty <- checkExpr expr
+  case ty of
+    S.TBool -> return ()
+    S.TInt -> return ()
+    _ ->
+      addError $
+      T.pack $
+      "Expression: " ++
+      show expr ++ "\n with type: " ++ show ty ++ " cannot be printed"
+checkStatement (S.SAssignId idtf expr) = do
+  tyExpr <- checkExpr expr
+  tyIdtf <- M.lookup idtf <$> use vars
+  case tyIdtf of
+    Nothing -> addError $ T.pack $ "Varaible: " ++ show idtf ++ "is undefined"
+    Just t ->
+      if t == tyExpr
+        then return ()
+        else addError ""
 
 checkExpr :: Monad m => S.Expression -> TC m S.Type
 checkExpr = undefined

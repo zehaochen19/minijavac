@@ -11,6 +11,8 @@ import MiniJava.Symbol
 
 type TC m = StateT SymbolTable m
 
+type TC' = State SymbolTable
+
 type ClassTable = M.Map Identifier ClassDec
 
 type MethodTable = M.Map Identifier MethodDec
