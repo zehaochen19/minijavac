@@ -3,7 +3,6 @@ module MiniJava.TypeCheck where
 import Control.Lens
 import Control.Monad.State
 import qualified Data.Map as M
-import qualified Data.Text as T
 import qualified MiniJava.Symbol as S
 import MiniJava.TypeCheck.Type
 import MiniJava.TypeCheck.Util
@@ -18,20 +17,13 @@ initSymbolTable ast = do
   put
     SymbolTable
       { _methods = M.empty
-      , _classes = collectClasses ast
+      , _classes = fromClassDecs $ ast ^. S.classes
       , _vars = M.empty
       , _curClass = Nothing
       , _curMethod = Nothing
       , _errors = []
       }
   return ()
-
--- Collect information of global classes
-collectClasses :: S.MiniJavaAST -> ClassTable
-collectClasses ast = M.fromList pairs
-  where
-    cls = ast ^. S.classes
-    pairs = map (\c -> (c ^. S.className, c)) cls
 
 checkMain :: Monad m => S.MainClass -> TC m ()
 checkMain = undefined
@@ -48,12 +40,11 @@ initClassScope :: Monad m => S.ClassDec -> TC m ()
 initClassScope classDec = do
   curClass .= Just (classDec ^. S.className)
   vars .= M.fromList varDecs
-  methods .= M.fromList metDecs
+  methods .= fromMethodDecs (classDec ^. S.methods)
   return ()
   where
     varDecs =
       fmap (\v -> (v ^. S.varId, v ^. S.varType)) (classDec ^. S.classVars)
-    metDecs = fmap (\m -> (m ^. S.methodId, m)) (classDec ^. S.methods)
 
 -- Check the predicate in `while` and `if`
 checkPred :: Monad m => S.Expression -> TC m ()
@@ -65,10 +56,16 @@ checkPred pred = do
       S.TBottom -> return () -- errros in subexpression
       ty ->
         addError $
-        T.pack $
         "Predicate expression: " ++
         show pred ++ "\nExpected type: TBool" ++ "\nBut has: " ++ show ty
   return ()
+
+-- Find the type of an identifer in the following order:
+-- 1. Current scope
+-- 2. Class scope
+-- 3. Supertype scope (until the topmost one)
+findIdtfType :: Monad m => S.Identifier -> TC m (Maybe S.Type)
+findIdtfType = undefined
 
 checkStatement :: Monad m => S.Statement -> TC m ()
 checkStatement (S.SBlock stmts) = mapM_ checkStatement stmts
@@ -85,14 +82,13 @@ checkStatement (S.SPrint expr) = do
     S.TInt -> return ()
     _ ->
       addError $
-      T.pack $
       "Expression: " ++
       show expr ++ "\n with type: " ++ show ty ++ " cannot be printed"
 checkStatement (S.SAssignId idtf expr) = do
   tyExpr <- checkExpr expr
   tyIdtf <- M.lookup idtf <$> use vars
   case tyIdtf of
-    Nothing -> addError $ T.pack $ "Varaible: " ++ show idtf ++ "is undefined"
+    Nothing -> addError $ "Varaible: " ++ show idtf ++ "is undefined"
     Just t ->
       if t == tyExpr
         then return ()

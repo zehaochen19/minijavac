@@ -9,15 +9,43 @@ import Data.Text
 import qualified Data.Vector as V
 import MiniJava.Symbol
 
-type TC m = StateT SymbolTable m
+data ClassInfo = ClassInfo
+  { _cVars :: VarTable
+  , _superClass :: Maybe Identifier
+  , _cMethods :: MethodTable
+  } deriving (Show)
 
-type TC' = State SymbolTable
+fromClassDec :: ClassDec -> (Identifier, ClassInfo)
+fromClassDec dec =
+  ( dec ^. className
+  , ClassInfo
+      (fromVarDecList $ dec ^. classVars)
+      (dec ^. superClass)
+      (fromMethodDecs $ dec ^. methods))
 
-type ClassTable = M.Map Identifier ClassDec
+data MethodInfo = MethodInfo
+  { _returnType :: Type
+  , _args :: [(Type, Identifier)]
+  } deriving (Show)
 
-type MethodTable = M.Map Identifier MethodDec
+fromMethodDec :: MethodDec -> (Identifier, MethodInfo)
+fromMethodDec dec =
+  (dec ^. methodId, MethodInfo (dec ^. returnType) (dec ^. args))
+
+type ClassTable = M.Map Identifier ClassInfo
+
+fromClassDecs :: [ClassDec] -> ClassTable
+fromClassDecs = M.fromList . fmap fromClassDec
+
+type MethodTable = M.Map Identifier MethodInfo
+
+fromMethodDecs :: [MethodDec] -> MethodTable
+fromMethodDecs = M.fromList . fmap fromMethodDec
 
 type VarTable = M.Map Identifier Type
+
+fromVarDecList :: [VarDec] -> VarTable
+fromVarDecList = M.fromList . fmap (\dec -> (dec ^. varId, dec ^. varType))
 
 data SymbolTable = SymbolTable
   { _methods :: MethodTable
@@ -28,6 +56,10 @@ data SymbolTable = SymbolTable
   , _errors :: [Text]
   } deriving (Show)
 
-makeLenses ''SymbolTable
-
 type CheckResult = Either (V.Vector Text) ()
+
+type TC m = StateT SymbolTable m
+
+type TC' = State SymbolTable
+
+makeLenses ''SymbolTable

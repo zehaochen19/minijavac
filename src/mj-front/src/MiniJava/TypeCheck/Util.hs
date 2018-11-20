@@ -8,5 +8,5 @@ import qualified Data.Text as T
 import qualified MiniJava.Symbol as S
 import MiniJava.TypeCheck.Type
 
-addError :: Monad m => Text -> TC m ()
-addError msg = errors %= (:) msg
+addError :: Monad m => String -> TC m ()
+addError msg = errors %= (:) (T.pack msg)
