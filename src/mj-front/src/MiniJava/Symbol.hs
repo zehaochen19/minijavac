@@ -1,11 +1,14 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module MiniJava.Symbol where
 
+import Control.Lens
 import Data.Text (Text)
 
 -- Wrapper of Text
 newtype Identifier =
   Identifier Text
-  deriving (Eq, Show)
+  deriving (Eq, Show, Ord)
 
 -- All supported type in MiniJava
 data Type
@@ -91,3 +94,9 @@ data MiniJavaAST = MiniJavaAST
   { _mainClass :: MainClass
   , _classes :: [ClassDec]
   } deriving (Eq, Show)
+
+makeLenses ''ClassDec
+
+makeLenses ''MiniJavaAST
+
+makeLenses ''MethodDec
