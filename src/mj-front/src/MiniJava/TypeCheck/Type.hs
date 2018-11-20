@@ -24,8 +24,8 @@ fromClassDec dec =
       (fromMethodDecs $ dec ^. methods))
 
 data MethodInfo = MethodInfo
-  { _returnType :: Type
-  , _args :: [(Type, Identifier)]
+  { _retType :: Type
+  , _argsInfo :: [(Type, Identifier)]
   } deriving (Show)
 
 fromMethodDec :: MethodDec -> (Identifier, MethodInfo)
@@ -65,3 +65,5 @@ type TC' = State SymbolTable
 makeLenses ''SymbolTable
 
 makeLenses ''ClassInfo
+
+makeLenses ''MethodInfo

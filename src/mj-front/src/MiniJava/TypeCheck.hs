@@ -67,6 +67,13 @@ checkPred pred = do
 -- Find the type of an identifer in the following order:
 -- 1. Current scope
 -- 2. Class scope
+-- 3. Supertype scope (until the topmost one) 
+findMetInfo :: Monad m => S.Identifier -> TC m MethodInfo
+findMetInfo metIdtf = undefined
+
+-- Find the type of an identifer in the following order:
+-- 1. Current scope
+-- 2. Class scope
 -- 3. Supertype scope (until the topmost one)
 findVarType :: Monad m => S.Identifier -> TC m S.Type
 findVarType i = do
@@ -135,12 +142,14 @@ checkStatement (S.SAssignArr idtf idxExpr expr) = do
   checkOrError S.TIntArray tyIdtf idtf
   checkOrError S.TInt tyIdx idxExpr
   checkOrError S.TInt tyExpr expr
+  return ()
 
-checkOrError :: (Show a, Monad m) => S.Type -> S.Type -> a -> TC m ()
+checkOrError ::
+     (Show a, Monad m) => S.Type -> S.Type -> a -> TC m (Maybe S.Type)
 checkOrError expectedType actualType symbol =
   if expectedType == actualType
-    then return ()
-    else typeError expectedType actualType symbol
+    then return $ Just expectedType
+    else typeError expectedType actualType symbol >> return Nothing
 
 checkExpr :: Monad m => S.Expression -> TC m S.Type
 checkExpr S.ETrue = return S.TBool
@@ -165,3 +174,49 @@ checkExpr (S.ENewIntArr len) = do
   tyLen <- checkExpr len
   checkOrError S.TInt tyLen len
   return tyLen
+checkExpr (S.EArrayLength expr) = do
+  tyExpr <- checkExpr expr
+  result <- checkOrError S.TIntArray tyExpr expr
+  return $
+    case result of
+      Nothing -> S.TBottom
+      Just ty -> S.TInt
+checkExpr (S.EArrayIndex arr idx) = do
+  tyArr <- checkExpr arr
+  tyIdx <- checkExpr idx
+  resArr <- checkOrError S.TIntArray tyArr arr
+  resIdx <- checkOrError S.TInt tyIdx idx
+  return $
+    case (resArr, resIdx) of
+      (Just _, Just _) -> S.TInt
+      _ -> S.TBottom
+checkExpr (S.EMethodApp obj met args) = do
+  tyObj <- checkExpr obj
+  case tyObj of
+    S.TClass cls -> do
+      maybeClsInfo <- M.lookup cls <$> use classes
+      case maybeClsInfo of
+        Nothing -> do
+          addError $ "Cannot find class `" ++ show cls ++ "` in `" ++ show tyObj
+          return S.TBottom
+        Just clsInfo -> undefined
+        -- TODO
+    _ -> do
+      addError $
+        "Cannot apply method `" ++
+        show obj ++ "` on non-class object`" ++ show obj ++ "`"
+      return S.TBottom
+checkExpr (S.EBinary op expr1 expr2)
+  | op `elem` [S.BPlus, S.BMinus, S.BMult] = checkOperands S.TInt S.TInt S.TInt
+  | op == S.BLT = checkOperands S.TInt S.TInt S.TBool
+  | op == S.BAnd = checkOperands S.TBool S.TBool S.TBool
+  where
+    checkOperands ty1 ty2 resType = do
+      tyExpr1 <- checkExpr expr1
+      tyExpr2 <- checkExpr expr2
+      res1 <- checkOrError tyExpr1 ty1 expr1
+      res2 <- checkOrError tyExpr2 ty2 expr2
+      return $
+        case (res1, res2) of
+          (Just _, Just _) -> resType
+          _ -> S.TBottom
