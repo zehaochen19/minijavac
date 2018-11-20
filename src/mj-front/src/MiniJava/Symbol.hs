@@ -16,6 +16,7 @@ data Type
   | TIntArray
   | TBool
   | TClass Identifier
+  | TBottom -- representing errors
   deriving (Eq, Show)
 
 data Expression
@@ -94,6 +95,8 @@ data MiniJavaAST = MiniJavaAST
   { _mainClass :: MainClass
   , _classes :: [ClassDec]
   } deriving (Eq, Show)
+
+makeLenses ''VarDec
 
 makeLenses ''ClassDec
 

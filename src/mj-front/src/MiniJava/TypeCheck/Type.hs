@@ -3,10 +3,13 @@
 module MiniJava.TypeCheck.Type where
 
 import Control.Lens
+import Control.Monad.State
 import qualified Data.Map as M
 import Data.Text
 import qualified Data.Vector as V
 import MiniJava.Symbol
+
+type TC m = StateT SymbolTable m
 
 type ClassTable = M.Map Identifier ClassDec
 
@@ -18,14 +21,11 @@ data SymbolTable = SymbolTable
   { _methods :: MethodTable
   , _classes :: ClassTable
   , _vars :: VarTable
-  , _curClass :: Maybe ClassDec
-  , _curMethod :: Maybe MethodDec
-  , _errors :: V.Vector Text
+  , _curClass :: Maybe Identifier
+  , _curMethod :: Maybe Identifier
+  , _errors :: [Text]
   } deriving (Show)
 
 makeLenses ''SymbolTable
 
-data CheckResult
-  = Err
-  | Ok
-  deriving (Eq, Show)
+type CheckResult = Either (V.Vector Text) ()
