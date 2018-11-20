@@ -154,3 +154,14 @@ checkExpr S.EThis = do
     Nothing ->
       addError "Not in a class scope when using `this`" >> return S.TBottom
     Just clsIdtf -> return $ S.TClass clsIdtf
+checkExpr s@(S.ENewObj idtf) = do
+  result <- fmap (\_ -> S.TClass idtf) . M.lookup idtf <$> use classes
+  liftM2
+    fromMaybe
+    (do addError $ "Cannot find class `" ++ show idtf ++ "`\nin " ++ show s
+        return S.TBool) $
+    pure result
+checkExpr (S.ENewIntArr len) = do
+  tyLen <- checkExpr len
+  checkOrError S.TInt tyLen len
+  return tyLen
