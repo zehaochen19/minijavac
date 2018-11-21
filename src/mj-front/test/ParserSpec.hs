@@ -11,6 +11,17 @@ import Test.Hspec
 import Text.Megaparsec
 import Text.RawString.QQ
 
+parserSpecs :: Spec
+parserSpecs = do
+  identifierPSpec
+  expressionPSpec
+  varDecPSpec
+  statementPSpec
+  methodDecPSpec
+  mainClassDecPSpec
+  classDecPSpec
+  miniJavaPSpec
+
 identifierPSpec :: Spec
 identifierPSpec =
   describe "Identifier parser should" $ do

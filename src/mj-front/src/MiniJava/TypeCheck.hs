@@ -7,15 +7,22 @@ import Control.Monad (liftM2)
 import Control.Monad.State
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
+import qualified Data.Text as T
 import Data.Tuple (swap)
 import qualified MiniJava.Symbol as S
 import MiniJava.TypeCheck.Type
 import MiniJava.TypeCheck.Util
 
-checkMiniJava :: Monad m => S.MiniJavaAST -> TC m CheckResult
+typeCheck :: S.MiniJavaAST -> [T.Text]
+typeCheck ast = execState (checkMiniJava ast) emptySymbolTable ^. errors
+
+checkMiniJava :: Monad m => S.MiniJavaAST -> TC m ()
 checkMiniJava ast = do
   initSymbolTable ast
-  return $ Right ()
+  checkMain $ ast ^. S.mainClass
+  mapM_ checkClass $ ast ^. S.classes
+
+emptySymbolTable = SymbolTable M.empty M.empty M.empty Nothing Nothing []
 
 initSymbolTable :: Monad m => S.MiniJavaAST -> TC m ()
 initSymbolTable ast = do
@@ -31,7 +38,7 @@ initSymbolTable ast = do
   return ()
 
 checkMain :: Monad m => S.MainClass -> TC m ()
-checkMain = undefined
+checkMain (S.MainClass _ _ mainFunc) = checkStatement mainFunc
 
 checkClass :: Monad m => S.ClassDec -> TC m ()
 checkClass classDec = do
@@ -118,7 +125,6 @@ findVarType i = do
         Nothing -> return S.TBottom
         Just cls -> findInClassScope i cls
     Just ty -> return ty
-  return S.TBottom
   where
     findInClassScope i cls = do
       classTable <- use classes
