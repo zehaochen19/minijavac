@@ -7,6 +7,7 @@ import Control.Monad (liftM2)
 import Control.Monad.State
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
+import Data.Tuple (swap)
 import qualified MiniJava.Symbol as S
 import MiniJava.TypeCheck.Type
 import MiniJava.TypeCheck.Util
@@ -37,7 +38,22 @@ checkClass classDec = do
   initClassScope classDec
   mapM_ checkMethod $ classDec ^. S.methods
 
-checkMethod = undefined
+checkMethod :: Monad m => S.MethodDec -> TC m ()
+checkMethod methodDec = do
+  curMethod .= (Just $ methodDec ^. S.methodId) -- update current method
+  vars .= collectVars (methodDec ^. S.args) (methodDec ^. S.methodVars) -- update varaible table
+  mapM_ checkStatement $ methodDec ^. S.statements
+  -- Check return type
+  tyRetExpr <- checkExpr $ methodDec ^. S.retExp
+  let tyDecRet = methodDec ^. S.returnType
+  if tyRetExpr == tyDecRet
+    then return ()
+    else typeError tyDecRet tyRetExpr $ methodDec ^. S.retExp
+  where
+    collectVars args varDecs =
+      M.fromList $
+      ((\varDec -> (varDec ^. S.varId, varDec ^. S.varType)) <$> varDecs) ++
+      (swap <$> args)
 
 -- Collect information of class variables and methods
 initClassScope :: Monad m => S.ClassDec -> TC m ()
@@ -193,10 +209,7 @@ checkExpr (S.ENewIntArr len) = do
 checkExpr (S.EArrayLength expr) = do
   tyExpr <- checkExpr expr
   result <- checkOrError S.TIntArray tyExpr expr
-  return $
-    case result of
-      Nothing -> S.TBottom
-      Just ty -> S.TInt
+  return $ maybe S.TBottom (const S.TInt) result
 checkExpr (S.EArrayIndex arr idx) = do
   tyArr <- checkExpr arr
   tyIdx <- checkExpr idx
