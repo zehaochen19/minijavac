@@ -64,12 +64,28 @@ checkPred pred = do
         show pred ++ "\nExpected type: TBool" ++ "\nBut has: " ++ show ty
   return ()
 
--- Find the type of an identifer in the following order:
--- 1. Current scope
--- 2. Class scope
+-- Find the method info in the following order:
+-- 1. Scope defined by class identifier
 -- 3. Supertype scope (until the topmost one) 
-findMetInfo :: Monad m => S.Identifier -> TC m MethodInfo
-findMetInfo metIdtf = undefined
+findMetInfo ::
+     Monad m => S.Identifier -> S.Identifier -> TC m (Maybe MethodInfo)
+findMetInfo cls met = do
+  classTable <- use classes
+  case M.lookup cls classTable of
+    Nothing -> do
+      addError $
+        "Cannot find class of `" ++
+        show cls ++ "` when applying method `" ++ show met ++ "`"
+      return Nothing
+    Just clsInfo -> do
+      let maybeMetInfo = clsInfo ^. cMethods
+      case M.lookup met maybeMetInfo of
+        Nothing -- find method info in super class
+         ->
+          case clsInfo ^. superClass of
+            Nothing -> return Nothing
+            Just super -> findMetInfo super met
+        Just metInfo -> return $ Just metInfo
 
 -- Find the type of an identifer in the following order:
 -- 1. Current scope
@@ -194,13 +210,20 @@ checkExpr (S.EMethodApp obj met args) = do
   tyObj <- checkExpr obj
   case tyObj of
     S.TClass cls -> do
-      maybeClsInfo <- M.lookup cls <$> use classes
-      case maybeClsInfo of
+      metInfo <- findMetInfo cls met
+      case metInfo of
         Nothing -> do
-          addError $ "Cannot find class `" ++ show cls ++ "` in `" ++ show tyObj
+          addError $
+            "Cannot find method `" ++
+            show met ++ "` in class `" ++ show cls ++ "`"
           return S.TBottom
-        Just clsInfo -> undefined
-        -- TODO
+        Just metInfo -> do
+          let metArgsTypes = fst <$> metInfo ^. argsInfo
+          argsTypes <- mapM checkExpr args
+          return $
+            if argsTypes == metArgsTypes
+              then metInfo ^. retType
+              else S.TBottom
     _ -> do
       addError $
         "Cannot apply method `" ++
