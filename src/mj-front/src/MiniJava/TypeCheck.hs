@@ -132,21 +132,29 @@ findVarType' i = do
       maybeCls <- use curClass
       case maybeCls of
         Nothing -> return S.TBottom
-        Just cls -> findInClassScope i cls
+        Just cls -> findInClassScope i cls []
     Just ty -> return ty
   where
-    findInClassScope i cls = do
-      classTable <- use classes
-      case M.lookup cls classTable of
-        Nothing -> return S.TBottom
-        Just cInfo ->
-          liftM2 fromMaybe findInSuper (return $ M.lookup i (cInfo ^. cVars))
-            -- find var in superclass
-          where findInSuper = do
-                  let super = cInfo ^. superClass
-                  case super of
-                    Nothing -> return S.TBottom
-                    Just c -> findInClassScope i c
+    findInClassScope i cls checkedClss =
+      if cls `elem` checkedClss
+        then do
+          addError $ "Circular inheritance chain: " ++ show (cls : checkedClss)
+          return S.TBottom
+        else do
+          classTable <- use classes
+          case M.lookup cls classTable of
+            Nothing -> return S.TBottom
+            Just cInfo ->
+              liftM2
+                fromMaybe
+                findInSuper
+                (return $ M.lookup i (cInfo ^. cVars))
+                -- find var in superclass
+              where findInSuper = do
+                      let super = cInfo ^. superClass
+                      case super of
+                        Nothing -> return S.TBottom
+                        Just c -> findInClassScope i c (cls : checkedClss)
 
 checkStatement :: Monad m => S.Statement -> TC m ()
 -- Block
