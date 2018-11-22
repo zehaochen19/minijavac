@@ -1,6 +1,9 @@
---import ParserSpec
+import ParserSpec
 import Test.Hspec
 import TypeCheckSpec
 
 main :: IO ()
-main = hspec $ do typeCheckSpecs
+main =
+  hspec $ do
+    parserSpecs
+    typeCheckSpecs

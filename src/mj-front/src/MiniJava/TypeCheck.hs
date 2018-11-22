@@ -220,15 +220,15 @@ checkExpr S.EThis = do
     Just clsIdtf -> return $ S.TClass clsIdtf
 checkExpr s@(S.ENewObj idtf) = do
   result <- fmap (\_ -> S.TClass idtf) . M.lookup idtf <$> use classes
-  liftM2
-    fromMaybe
-    (do addError $ "Cannot find class `" ++ show idtf ++ "`\nin " ++ show s
-        return S.TBool) $
-    pure result
+  case result of
+    Nothing -> do
+      addError $ "Cannot find class `" ++ show idtf ++ "`\nin " ++ show s
+      return S.TBool
+    Just ty -> return ty
 checkExpr (S.ENewIntArr len) = do
   tyLen <- checkExpr len
   checkOrError S.TInt tyLen len
-  return tyLen
+  return S.TIntArray
 checkExpr (S.EArrayLength expr) = do
   tyExpr <- checkExpr expr
   result <- checkOrError S.TIntArray tyExpr expr
@@ -254,7 +254,7 @@ checkExpr (S.EMethodApp obj met args) = do
             show met ++ "` in class `" ++ show cls ++ "`"
           return S.TBottom
         Just metInfo -> do
-          let metArgsTypes = fst <$> metInfo ^. argsInfo
+          let metArgsTypes = metInfo ^. argsInfo
           argsTypes <- mapM checkExpr args
           return $
             if argsTypes == metArgsTypes

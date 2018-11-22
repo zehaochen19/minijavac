@@ -25,7 +25,7 @@ fromClassDec dec =
 
 data MethodInfo = MethodInfo
   { _retType :: Type
-  , _argsInfo :: [(Type, Identifier)]
+  , _argsInfo :: [Type]
   } deriving (Show)
 
 type ClassTable = M.Map Identifier ClassInfo
@@ -40,7 +40,7 @@ fromMethodDecs = M.fromList . fmap fromMethodDec
 
 fromMethodDec :: MethodDec -> (Identifier, MethodInfo)
 fromMethodDec dec =
-  (dec ^. methodId, MethodInfo (dec ^. returnType) (dec ^. args))
+  (dec ^. methodId, MethodInfo (dec ^. returnType) (fst <$> dec ^. args))
 
 type VarTable = M.Map Identifier Type
 
