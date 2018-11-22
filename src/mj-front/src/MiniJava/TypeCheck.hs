@@ -116,6 +116,15 @@ findMetInfo cls met = do
 -- 3. Supertype scope (until the topmost one)
 findVarType :: Monad m => S.Identifier -> TC m S.Type
 findVarType i = do
+  ty <- findVarType' i
+  case ty of
+    S.TBottom -> do
+      addError $ "Cannot find type of variable `" ++ show i ++ "`"
+      return S.TBottom
+    ty -> return ty
+
+findVarType' :: Monad m => S.Identifier -> TC m S.Type
+findVarType' i = do
   symTable <- use vars
   let currScopeTy = M.lookup i symTable
   case currScopeTy of
