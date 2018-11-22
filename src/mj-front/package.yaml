@@ -1,0 +1,65 @@
+name: mj-front
+version: 0.1.0.0
+github: "zehaochen19/minijavac"
+license: MIT
+author: "Zehao Chen"
+maintainer: "zehaochen19@gmail.com"
+copyright: "2018 Zehao Chen"
+
+extra-source-files:
+  - README.md
+  - ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description: Please see the README on GitHub at <https://github.com/githubuser/mj-font#readme>
+
+dependencies:
+  - base >= 4.7 && < 5
+  - Cabal
+  - megaparsec
+  - parser-combinators
+  - text
+  - vector
+  - containers
+  - cassava
+  - bytestring
+  - unordered-containers
+  - lens
+  - mtl
+  - hspec
+  - raw-strings-qq
+
+library:
+  source-dirs: src
+
+executables:
+  mj-front-exe:
+    main: Main.hs
+    source-dirs: app
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - mj-front
+
+tests:
+  mj-front-test:
+    main: Spec.hs
+    source-dirs: test
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - mj-front
+
+default-extensions:
+  - OverloadedStrings
+  - ScopedTypeVariables
