@@ -4,7 +4,6 @@
 module ParserSpec where
 
 import Data.Either
-import qualified Data.Text.IO as TIO
 import MiniJava.Parser
 import MiniJava.Symbol
 import Test.Hspec
@@ -253,15 +252,14 @@ classDecPSpec =
          (EId $ Identifier "value")
      ])
 
-testWithSrc :: FilePath -> IO ()
-testWithSrc srcPath = do
-  program <- TIO.readFile srcPath
-  let result = parse miniJavaP srcPath program
-  print result
-  result `shouldSatisfy` isRight
-
 miniJavaPSpec :: Spec
 miniJavaPSpec =
   describe "MiniJava parser should parse" $ do
     it "a LinkedList program" $ testWithSrc "test/cases/LinkedList.java"
     it "a BinaryTree program" $ testWithSrc "test/cases/BinaryTree.java"
+  where
+    testWithSrc :: FilePath -> IO ()
+    testWithSrc srcPath = do
+      result <- parseFromSrc srcPath
+      print result
+      result `shouldSatisfy` isRight

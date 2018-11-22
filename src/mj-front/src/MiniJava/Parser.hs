@@ -4,7 +4,8 @@ import Control.Monad.Combinators.Expr
 import Data.Functor (($>))
 import qualified Data.Set as S
 import Data.Text (Text)
-import Data.Text as T
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import Data.Void
 import MiniJava.Symbol
 import Text.Megaparsec
@@ -12,6 +13,12 @@ import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
 
 type Parser = Parsec Void Text
+
+parseFromSrc ::
+     FilePath -> IO (Either (ParseError (Token Text) Void) MiniJavaAST)
+parseFromSrc src = do
+  program <- TIO.readFile src
+  return $ parse miniJavaP src program
 
 sc :: Parser ()
 sc = L.space space1 lineComment blockComment

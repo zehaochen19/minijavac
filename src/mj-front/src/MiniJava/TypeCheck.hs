@@ -209,6 +209,10 @@ checkOrError expectedType actualType symbol =
 checkExpr :: Monad m => S.Expression -> TC m S.Type
 checkExpr S.ETrue = return S.TBool
 checkExpr S.EFalse = return S.TBool
+checkExpr (S.ENot expr) = do
+  tyExpr <- checkExpr expr
+  result <- checkOrError S.TBool tyExpr expr
+  return $ fromMaybe S.TBottom result
 checkExpr (S.EInt _) = return S.TInt
 checkExpr (S.EParen expr) = checkExpr expr
 checkExpr (S.EId idtf) = findVarType idtf

@@ -4,6 +4,8 @@ import Control.Lens
 import Control.Monad.State
 
 import qualified Data.Map as M
+
+import MiniJava.Parser
 import MiniJava.Symbol as S
 import MiniJava.TypeCheck
 import MiniJava.TypeCheck.Type as TC
@@ -12,6 +14,7 @@ import Test.Hspec
 typeCheckSpecs :: Spec
 typeCheckSpecs = do
   checkExprSpec
+  typeCheckSpec
 
 nodeInfo :: ClassInfo
 nodeInfo =
@@ -184,3 +187,16 @@ checkExprSpec = do
                 }
       ty `shouldBe` TInt
       symbolTable ^. errors `shouldBe` []
+
+typeCheckSpec :: Spec
+typeCheckSpec =
+  describe "typeCheck should check" $ do
+    it "a LinkedList program" $ testWithSrc "test/cases/LinkedList.java"
+    it "a BinaryTree program" $ testWithSrc "test/cases/BinaryTree.java"
+  where
+    testWithSrc :: FilePath -> IO ()
+    testWithSrc srcPath = do
+      ast <- parseFromSrc srcPath
+      let errors = typeCheck <$> ast
+      print errors
+      errors `shouldBe` Right []
