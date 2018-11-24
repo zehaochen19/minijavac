@@ -5,10 +5,26 @@ module MiniJava.Symbol where
 import           Control.Lens
 import           Data.Text                      ( Text )
 
+
+-- typeclass for showing symbols when errors occur
+class SymbolShow s where
+  sShow :: s -> String
+
+
+instance SymbolShow s => SymbolShow [s] where
+  sShow ss = '[' : joined' ++ "]"
+    where
+      joined = foldr (\s str -> sShow s ++ ", " ++ str) "" ss
+      joined' = if null joined then joined else init . init $ joined
+
+
 -- Wrapper of Text
 newtype Identifier =
   Identifier Text
   deriving (Eq, Ord, Show)
+
+instance SymbolShow Identifier where
+  sShow (Identifier t) = show t
 
 -- All supported type in MiniJava
 data Type
@@ -17,14 +33,14 @@ data Type
   | TBool
   | TClass Identifier
   | TBottom -- representing errors
-  deriving (Eq)
+  deriving (Eq, Show)
 
-instance Show Type where
-  show TInt = "int"
-  show TIntArray = "int[]"
-  show TBool = "boolean"
-  show (TClass ident) = show ident
-  show TBottom = "⊥"
+instance SymbolShow Type where
+  sShow TInt = "int"
+  sShow TIntArray = "int[]"
+  sShow TBool = "boolean"
+  sShow (TClass ident) = sShow ident
+  sShow TBottom = "⊥"
 
 data Expression
   = EBinary BinOp
@@ -45,23 +61,23 @@ data Expression
   | ENewObj Identifier
   | ENot Expression
   | EParen Expression
-  deriving (Eq)
+  deriving (Eq, Show)
 
-instance Show Expression where
-  show (EBinary op e1 e2) = show e1 ++ " " ++ show op ++ " " ++ show e2
-  show (EArrayIndex arr idx) = show arr ++ "[" ++ show idx ++ "]"
-  show (EArrayLength arr) = show arr ++ ".length"
-  show (EMethodApp obj met args) =
-    show obj ++ "." ++ show met ++ "(" ++ foldr (\e str -> show e ++ ", " ++ str) "" args ++ ")"
-  show (EInt i) = show i
-  show (EId idtf) = show idtf
-  show ETrue = "true"
-  show EFalse = "false"
-  show EThis = "this"
-  show (ENewIntArr len) = "new int[" ++ show len ++ "]"
-  show (ENewObj c) = "new " ++ show c ++ "()"
-  show (ENot expr) = '!' : show expr
-  show (EParen expr) = '(' : show expr ++ ")"
+instance SymbolShow Expression where
+  sShow (EBinary op e1 e2) = sShow e1 ++ " " ++ sShow op ++ " " ++ sShow e2
+  sShow (EArrayIndex arr idx) = sShow arr ++ "[" ++ sShow idx ++ "]"
+  sShow (EArrayLength arr) = sShow arr ++ ".length"
+  sShow (EMethodApp obj met args) =
+    sShow obj ++ "." ++ sShow met ++ "(" ++ foldr (\e str -> sShow e ++ ", " ++ str) "" args ++ ")"
+  sShow (EInt i) = show i
+  sShow (EId idtf) = sShow idtf
+  sShow ETrue = "true"
+  sShow EFalse = "false"
+  sShow EThis = "this"
+  sShow (ENewIntArr len) = "new int[" ++ sShow len ++ "]"
+  sShow (ENewObj c) = "new " ++ sShow c ++ "()"
+  sShow (ENot expr) = '!' : sShow expr
+  sShow (EParen expr) = '(' : sShow expr ++ ")"
 
 
 -- Binary Operators
@@ -71,14 +87,14 @@ data BinOp
   | BPlus
   | BMinus
   | BMult
-  deriving (Eq)
+  deriving (Eq, Show)
 
-instance Show BinOp where
-  show BAnd = "&&"
-  show BLT = "<"
-  show BPlus = "+"
-  show BMinus = "-"
-  show BMult = "*"
+instance SymbolShow BinOp where
+  sShow BAnd = "&&"
+  sShow BLT = "<"
+  sShow BPlus = "+"
+  sShow BMinus = "-"
+  sShow BMult = "*"
 
 data Statement
   = SBlock [Statement]
@@ -93,18 +109,18 @@ data Statement
   | SAssignArr Identifier
                Expression
                Expression
-  deriving (Eq)
+  deriving (Eq, Show)
 
-instance Show Statement where
-  show (SBlock statements) =
-    "{ " ++ foldr (\s str -> show s ++ " " ++  str) "" statements ++ " }"
-  show (SIf pred trueClause falseClause) =
-    "if (" ++ show pred ++ ") " ++ show trueClause ++ " else " ++ show falseClause
-  show (SWhile pred body) =
-    "while (" ++ show pred ++ ") " ++ show body
-  show (SPrint expr) = "System.out.println(" ++ show expr ++ ");"
-  show (SAssignId idtf expr) = show idtf ++ " = " ++ show expr ++ ";"
-  show (SAssignArr arr idx value) = show arr ++ "[" ++ show idx ++ "] = " ++ show value ++ ";"
+instance SymbolShow Statement where
+  sShow (SBlock statements) =
+    "{ " ++ foldr (\s str -> sShow s ++ " " ++  str) "" statements ++ " }"
+  sShow (SIf pred trueClause falseClause) =
+    "if (" ++ sShow pred ++ ") " ++ sShow trueClause ++ " else " ++ sShow falseClause
+  sShow (SWhile pred body) =
+    "while (" ++ sShow pred ++ ") " ++ sShow body
+  sShow (SPrint expr) = "System.out.println(" ++ sShow expr ++ ");"
+  sShow (SAssignId idtf expr) = sShow idtf ++ " = " ++ sShow expr ++ ";"
+  sShow (SAssignArr arr idx value) = sShow arr ++ "[" ++ sShow idx ++ "] = " ++ sShow value ++ ";"
 
 
 data MainClass = MainClass

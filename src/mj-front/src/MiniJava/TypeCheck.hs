@@ -83,7 +83,7 @@ checkPred pred = do
     ty ->
       addError $
       "Predicate expression: " ++
-      show pred ++ "\nExpected type: TBool" ++ "\nBut has: " ++ show ty
+      S.sShow pred ++ "\nExpected type: TBool" ++ "\nBut has: " ++ S.sShow ty
   return ()
 
 -- Find the method info in the following order:
@@ -97,7 +97,7 @@ findMetInfo cls met = do
     Nothing -> do
       addError $
         "Cannot find class of `" ++
-        show cls ++ "` when applying method `" ++ show met ++ "`"
+        S.sShow cls ++ "` when applying method `" ++ S.sShow met ++ "`"
       return Nothing
     Just clsInfo -> do
       let maybeMetInfo = clsInfo ^. cMethods
@@ -118,7 +118,7 @@ findVarType i = do
   ty <- findVarType' i
   case ty of
     S.TBottom -> do
-      addError $ "Cannot find type of variable `" ++ show i ++ "`"
+      addError $ "Cannot find type of variable `" ++ S.sShow i ++ "`"
       return S.TBottom
     ty -> return ty
 
@@ -137,17 +137,16 @@ findVarType' i = do
     findInClassScope i cls checkedClss =
       if cls `elem` checkedClss
         then do
-          addError $ "Circular inheritance chain: " ++ show (cls : checkedClss)
+          addError $ "Circular inheritance chain: " ++ S.sShow (cls : checkedClss)
           return S.TBottom
         else do
           classTable <- use classes
           case M.lookup cls classTable of
             Nothing -> return S.TBottom
             Just cInfo ->
-              liftM2
-                fromMaybe
-                findInSuper
-                (return $ M.lookup i (cInfo ^. cVars))
+              case M.lookup i (cInfo ^. cVars) of 
+                Nothing -> findInSuper
+                Just c -> return c
                 -- find var in superclass
               where findInSuper = do
                       let super = cInfo ^. superClass
@@ -174,7 +173,7 @@ checkStatement (S.SPrint expr) = do
     _ ->
       addError $
       "Expression: `" ++
-      show expr ++ "`\nwith type: `" ++ show ty ++ "` cannot be printed"
+      S.sShow expr ++ "`\nwith type: `" ++ S.sShow ty ++ "` cannot be printed"
 -- Identifer Assignment
 checkStatement (S.SAssignId idtf expr) = do
   tyExpr <- checkExpr expr
@@ -183,11 +182,11 @@ checkStatement (S.SAssignId idtf expr) = do
     then return ()
     else addError $
          "Cannot match expected type `" ++
-         show tyExpr ++
+         S.sShow tyExpr ++
          "`\nwith actual type `" ++
-         show tyIdtf ++
+         S.sShow tyIdtf ++
          "`\nIn assigning: " ++
-         "`" ++ show idtf ++ "`\nwith `" ++ show expr ++ "`"
+         "`" ++ S.sShow idtf ++ "`\nwith `" ++ S.sShow expr ++ "`"
 -- Int Array Assignment
 checkStatement (S.SAssignArr idtf idxExpr expr) = do
   tyIdtf <- findVarType idtf
@@ -199,7 +198,7 @@ checkStatement (S.SAssignArr idtf idxExpr expr) = do
   return ()
 
 checkOrError ::
-     (Show a, Monad m) => S.Type -> S.Type -> a -> TC m (Maybe S.Type)
+     (S.SymbolShow a, Monad m) => S.Type -> S.Type -> a -> TC m (Maybe S.Type)
 checkOrError expectedType actualType symbol =
   if expectedType == actualType
     then return $ Just expectedType
@@ -225,7 +224,7 @@ checkExpr s@(S.ENewObj idtf) = do
   result <- fmap (\_ -> S.TClass idtf) . M.lookup idtf <$> use classes
   case result of
     Nothing -> do
-      addError $ "Cannot find class `" ++ show idtf ++ "`\nin " ++ show s
+      addError $ "Cannot find class `" ++ S.sShow idtf ++ "`\nin " ++ S.sShow s
       return S.TBool
     Just ty -> return ty
 checkExpr (S.ENewIntArr len) = do
@@ -254,7 +253,7 @@ checkExpr (S.EMethodApp obj met args) = do
         Nothing -> do
           addError $
             "Cannot find method `" ++
-            show met ++ "` in class `" ++ show cls ++ "`"
+            S.sShow met ++ "` in class `" ++ S.sShow cls ++ "`"
           return S.TBottom
         Just metInfo -> do
           let metArgsTypes = metInfo ^. argsInfo
@@ -266,7 +265,7 @@ checkExpr (S.EMethodApp obj met args) = do
     _ -> do
       addError $
         "Cannot apply method `" ++
-        show obj ++ "` on non-class object`" ++ show obj ++ "`"
+        S.sShow obj ++ "` on non-class object`" ++ S.sShow obj ++ "`"
       return S.TBottom
 checkExpr (S.EBinary op expr1 expr2)
   | op `elem` [S.BPlus, S.BMinus, S.BMult] = checkOperands S.TInt S.TInt S.TInt
