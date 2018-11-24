@@ -8,7 +8,7 @@ import           Data.Text                      ( Text )
 -- Wrapper of Text
 newtype Identifier =
   Identifier Text
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Ord, Show)
 
 -- All supported type in MiniJava
 data Type
@@ -17,7 +17,14 @@ data Type
   | TBool
   | TClass Identifier
   | TBottom -- representing errors
-  deriving (Eq, Show)
+  deriving (Eq)
+
+instance Show Type where
+  show TInt = "int"
+  show TIntArray = "int[]"
+  show TBool = "boolean"
+  show (TClass ident) = show ident
+  show TBottom = "⊥"
 
 data Expression
   = EBinary BinOp
@@ -38,7 +45,11 @@ data Expression
   | ENewObj Identifier
   | ENot Expression
   | EParen Expression
-  deriving (Eq, Show)
+  deriving (Eq)
+
+instance Show Expression where
+  show (EBinary op e1 e2) = show e1 ++ " " ++ show op ++ " " ++ show e2
+  show (EArrayIndex arr idx) = show arr ++ "[" ++ show idx ++ "]"
 
 -- Binary Operators
 data BinOp
@@ -47,7 +58,14 @@ data BinOp
   | BPlus
   | BMinus
   | BMult
-  deriving (Eq, Show)
+  deriving (Eq)
+
+instance Show BinOp where
+  show BAnd = "&&"
+  show BLT = "<"
+  show BPlus = "+"
+  show BMinus = "-"
+  show BMult = "*"
 
 data Statement
   = SBlock [Statement]
@@ -62,7 +80,19 @@ data Statement
   | SAssignArr Identifier
                Expression
                Expression
-  deriving (Eq, Show)
+  deriving (Eq)
+
+instance Show Statement where
+  show (SBlock statements) =
+    "{ " ++ foldr (\s str -> show s ++ " " ++  str) "" statements ++ " }"
+  show (SIf pred trueClause falseClause) =
+    "if (" ++ show pred ++ ") " ++ show trueClause ++ " else " ++ show falseClause
+  show (SWhile pred body) =
+    "while (" ++ show pred ++ ") " ++ show body
+  show (SPrint expr) = "System.out.println(" ++ show expr ++ ");"
+  show (SAssignId idtf expr) = show idtf ++ " = " ++ show expr ++ ";"
+  show (SAssignArr arr idx value) = show arr ++ "[" ++ show idx ++ "] = " ++ show value ++ ";"
+
 
 data MainClass = MainClass
   { _mainClassName :: Identifier
