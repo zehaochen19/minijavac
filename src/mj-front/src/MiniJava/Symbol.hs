@@ -50,6 +50,19 @@ data Expression
 instance Show Expression where
   show (EBinary op e1 e2) = show e1 ++ " " ++ show op ++ " " ++ show e2
   show (EArrayIndex arr idx) = show arr ++ "[" ++ show idx ++ "]"
+  show (EArrayLength arr) = show arr ++ ".length"
+  show (EMethodApp obj met args) =
+    show obj ++ "." ++ show met ++ "(" ++ foldr (\e str -> show e ++ ", " ++ str) "" args ++ ")"
+  show (EInt i) = show i
+  show (EId idtf) = show idtf
+  show ETrue = "true"
+  show EFalse = "false"
+  show EThis = "this"
+  show (ENewIntArr len) = "new int[" ++ show len ++ "]"
+  show (ENewObj c) = "new " ++ show c ++ "()"
+  show (ENot expr) = '!' : show expr
+  show (EParen expr) = '(' : show expr ++ ")"
+
 
 -- Binary Operators
 data BinOp
