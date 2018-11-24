@@ -2,12 +2,12 @@
 
 module MiniJava.TypeCheck.Type where
 
-import Control.Lens
-import Control.Monad.State
-import qualified Data.Map as M
-import Data.Text
-import qualified Data.Vector as V
-import MiniJava.Symbol
+import           Control.Lens
+import           Control.Monad.State
+import qualified Data.Map                      as M
+import           Data.Text
+import qualified Data.Vector                   as V
+import           MiniJava.Symbol
 
 data ClassInfo = ClassInfo
   { _cVars :: VarTable
@@ -18,10 +18,10 @@ data ClassInfo = ClassInfo
 fromClassDec :: ClassDec -> (Identifier, ClassInfo)
 fromClassDec dec =
   ( dec ^. className
-  , ClassInfo
-      (fromVarDecList $ dec ^. classVars)
-      (dec ^. superClass)
-      (fromMethodDecs $ dec ^. methods))
+  , ClassInfo (fromVarDecList $ dec ^. classVars)
+              (dec ^. superClass)
+              (fromMethodDecs $ dec ^. methods)
+  )
 
 data MethodInfo = MethodInfo
   { _retType :: Type

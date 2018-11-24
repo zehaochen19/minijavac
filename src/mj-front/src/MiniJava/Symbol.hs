@@ -2,8 +2,8 @@
 
 module MiniJava.Symbol where
 
-import Control.Lens
-import Data.Text (Text)
+import           Control.Lens
+import           Data.Text                      ( Text )
 
 -- Wrapper of Text
 newtype Identifier =

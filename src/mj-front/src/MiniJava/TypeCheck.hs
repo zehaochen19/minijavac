@@ -77,14 +77,13 @@ initClassScope classDec = do
 checkPred :: Monad m => S.Expression -> TC m ()
 checkPred pred = do
   predType <- checkExpr pred
-  _ <-
-    case predType of
-      S.TBool -> return ()
-      S.TBottom -> return () -- errros in subexpression
-      ty ->
-        addError $
-        "Predicate expression: " ++
-        show pred ++ "\nExpected type: TBool" ++ "\nBut has: " ++ show ty
+  case predType of
+    S.TBool -> return ()
+    S.TBottom -> return () -- errros in subexpression
+    ty ->
+      addError $
+      "Predicate expression: " ++
+      show pred ++ "\nExpected type: TBool" ++ "\nBut has: " ++ show ty
   return ()
 
 -- Find the method info in the following order:
