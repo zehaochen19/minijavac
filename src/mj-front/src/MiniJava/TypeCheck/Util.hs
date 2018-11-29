@@ -16,8 +16,7 @@ typeError expectedType actualType symbol =
     $  addError
     $  "Cannot match expected type `"
     ++ S.sShow expectedType
-    ++ "`\nwith actual type `"
+    ++ "\nwith actual type "
     ++ S.sShow actualType
-    ++ "`\n in `"
+    ++ "\nin "
     ++ S.sShow symbol
-    ++ "`"

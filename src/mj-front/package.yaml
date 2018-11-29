@@ -32,6 +32,7 @@ dependencies:
   - lens
   - mtl
   - hspec
+  - aeson
 
 library:
   source-dirs: src

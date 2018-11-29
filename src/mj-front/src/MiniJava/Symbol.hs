@@ -1,10 +1,19 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module MiniJava.Symbol where
 
 import           Control.Lens
 import           Data.Text                      ( Text )
+import           GHC.Generics
 
+
+
+symbolsJoin :: SymbolShow s => Char -> [s] -> String
+symbolsJoin c ss = joined
+ where
+  joined  = foldr (\s str -> c : ' ' : sShow s ++ str) "" ss
+  joined' = if null joined then joined else drop 2 joined
 
 -- typeclass for showing symbols when errors occur
 class SymbolShow s where
@@ -12,16 +21,12 @@ class SymbolShow s where
 
 
 instance SymbolShow s => SymbolShow [s] where
-  sShow ss = '[' : joined' ++ "]"
-    where
-      joined = foldr (\s str -> sShow s ++ ", " ++ str) "" ss
-      joined' = if null joined then joined else init . init $ joined
-
+  sShow ss = '[' : symbolsJoin ',' ss ++ "]"
 
 -- Wrapper of Text
 newtype Identifier =
   Identifier Text
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic)
 
 instance SymbolShow Identifier where
   sShow (Identifier t) = show t
@@ -33,7 +38,7 @@ data Type
   | TBool
   | TClass Identifier
   | TBottom -- representing errors
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
 instance SymbolShow Type where
   sShow TInt = "int"
@@ -61,14 +66,14 @@ data Expression
   | ENewObj Identifier
   | ENot Expression
   | EParen Expression
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
 instance SymbolShow Expression where
   sShow (EBinary op e1 e2) = sShow e1 ++ " " ++ sShow op ++ " " ++ sShow e2
   sShow (EArrayIndex arr idx) = sShow arr ++ "[" ++ sShow idx ++ "]"
   sShow (EArrayLength arr) = sShow arr ++ ".length"
   sShow (EMethodApp obj met args) =
-    sShow obj ++ "." ++ sShow met ++ "(" ++ foldr (\e str -> sShow e ++ ", " ++ str) "" args ++ ")"
+    sShow obj ++ "." ++ sShow met ++ "(" ++ symbolsJoin ',' args ++ ")"
   sShow (EInt i) = show i
   sShow (EId idtf) = sShow idtf
   sShow ETrue = "true"
@@ -87,7 +92,7 @@ data BinOp
   | BPlus
   | BMinus
   | BMult
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
 instance SymbolShow BinOp where
   sShow BAnd = "&&"
@@ -109,7 +114,7 @@ data Statement
   | SAssignArr Identifier
                Expression
                Expression
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
 instance SymbolShow Statement where
   sShow (SBlock statements) =
@@ -127,19 +132,19 @@ data MainClass = MainClass
   { _mainClassName :: Identifier
   , _mainArgs :: Identifier
   , _mainFunc :: Statement
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Generic)
 
 data ClassDec = ClassDec
   { _className :: Identifier
   , _superClass :: Maybe Identifier
   , _classVars :: [VarDec]
   , _methods :: [MethodDec]
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Generic)
 
 data VarDec = VarDec
   { _varType :: Type
   , _varId :: Identifier
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Generic)
 
 data MethodDec = MethodDec
   { _returnType :: Type
@@ -148,12 +153,12 @@ data MethodDec = MethodDec
   , _methodVars :: [VarDec]
   , _statements :: [Statement]
   , _retExp :: Expression
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Generic)
 
 data MiniJavaAST = MiniJavaAST
   { _mainClass :: MainClass
   , _classes :: [ClassDec]
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Generic)
 
 makeLenses ''VarDec
 
