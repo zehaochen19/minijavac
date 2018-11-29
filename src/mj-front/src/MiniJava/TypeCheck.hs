@@ -1,7 +1,6 @@
 module MiniJava.TypeCheck where
 
 import           Control.Lens
-import           Control.Monad                  ( liftM2 )
 import           Control.Monad.State
 import qualified Data.Map                      as M
 import           Data.Maybe                     ( fromMaybe
@@ -230,7 +229,11 @@ checkStatement (S.SAssignArr idtf idxExpr expr) = do
   return ()
 
 checkOrError
-  :: (S.SymbolShow a, Monad m) => S.Type -> S.Type -> a -> TC m (Maybe S.Type)
+  :: (S.MiniJavaSymbol a, Monad m)
+  => S.Type
+  -> S.Type
+  -> a
+  -> TC m (Maybe S.Type)
 checkOrError expectedType actualType symbol = if expectedType == actualType
   then return $ Just expectedType
   else typeError expectedType actualType symbol >> return Nothing

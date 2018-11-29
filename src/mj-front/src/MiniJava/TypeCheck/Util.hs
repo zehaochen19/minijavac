@@ -10,7 +10,7 @@ addError :: Monad m => String -> TC m ()
 addError msg = errors %= (:) (T.pack msg)
 
 -- Supresss adding error if any of the types is TBottom
-typeError :: (Monad m, S.SymbolShow a) => S.Type -> S.Type -> a -> TC m ()
+typeError :: (Monad m, S.MiniJavaSymbol a) => S.Type -> S.Type -> a -> TC m ()
 typeError expectedType actualType symbol =
   when (expectedType /= S.TBottom && actualType /= S.TBottom)
     $  addError

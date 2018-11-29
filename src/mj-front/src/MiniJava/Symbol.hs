@@ -9,18 +9,18 @@ import           GHC.Generics
 
 
 
-symbolsJoin :: SymbolShow s => Char -> [s] -> String
-symbolsJoin c ss = joined
+symbolsJoin :: MiniJavaSymbol s => Char -> [s] -> String
+symbolsJoin c ss = joined'
  where
   joined  = foldr (\s str -> c : ' ' : sShow s ++ str) "" ss
   joined' = if null joined then joined else drop 2 joined
 
 -- typeclass for showing symbols when errors occur
-class SymbolShow s where
+class MiniJavaSymbol s where
   sShow :: s -> String
 
 
-instance SymbolShow s => SymbolShow [s] where
+instance MiniJavaSymbol s => MiniJavaSymbol [s] where
   sShow ss = '[' : symbolsJoin ',' ss ++ "]"
 
 -- Wrapper of Text
@@ -28,7 +28,7 @@ newtype Identifier =
   Identifier Text
   deriving (Eq, Ord, Show, Generic)
 
-instance SymbolShow Identifier where
+instance MiniJavaSymbol Identifier where
   sShow (Identifier t) = show t
 
 -- All supported type in MiniJava
@@ -40,7 +40,7 @@ data Type
   | TBottom -- representing errors
   deriving (Eq, Show, Generic)
 
-instance SymbolShow Type where
+instance MiniJavaSymbol Type where
   sShow TInt = "int"
   sShow TIntArray = "int[]"
   sShow TBool = "boolean"
@@ -68,7 +68,7 @@ data Expression
   | EParen Expression
   deriving (Eq, Show, Generic)
 
-instance SymbolShow Expression where
+instance MiniJavaSymbol Expression where
   sShow (EBinary op e1 e2) = sShow e1 ++ " " ++ sShow op ++ " " ++ sShow e2
   sShow (EArrayIndex arr idx) = sShow arr ++ "[" ++ sShow idx ++ "]"
   sShow (EArrayLength arr) = sShow arr ++ ".length"
@@ -94,7 +94,7 @@ data BinOp
   | BMult
   deriving (Eq, Show, Generic)
 
-instance SymbolShow BinOp where
+instance MiniJavaSymbol BinOp where
   sShow BAnd = "&&"
   sShow BLT = "<"
   sShow BPlus = "+"
@@ -116,7 +116,7 @@ data Statement
                Expression
   deriving (Eq, Show, Generic)
 
-instance SymbolShow Statement where
+instance MiniJavaSymbol Statement where
   sShow (SBlock statements) =
     "{ " ++ foldr (\s str -> sShow s ++ " " ++  str) "" statements ++ " }"
   sShow (SIf pred trueClause falseClause) =
