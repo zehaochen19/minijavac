@@ -1,6 +1,10 @@
---import ParserSpec
-import Test.Hspec
-import TypeCheckSpec
+import           ParserSpec
+import           Test.Hspec
+import           TypeCheckSpec
+import           JSONSpec
 
 main :: IO ()
-main = hspec $ do typeCheckSpecs
+main = hspec $ do
+  parserSpecs
+  typeCheckSpecs
+  jsonSpec
