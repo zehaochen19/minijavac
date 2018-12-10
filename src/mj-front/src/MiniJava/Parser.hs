@@ -11,8 +11,7 @@ import           MiniJava.Symbol
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer    as L
-import qualified Text.Megaparsec.Error         as ME
-import qualified Data.List.NonEmpty            as NonEmpty
+
 
 
 type Parser = Parsec Void Text
@@ -21,8 +20,6 @@ parseFromSrc :: FilePath -> IO (Either (ParseErrorBundle Text Void) MiniJavaAST)
 parseFromSrc src = do
   program <- TIO.readFile src
   return $ parse miniJavaP src program
-
-type ErrorStatement = Either (ParseError Text Void) Statement
 
 sc :: Parser ()
 sc = L.space space1 lineComment blockComment
@@ -58,8 +55,8 @@ commaP :: Parser Text
 commaP = symbol "," <?> "comma"
 
 -- Reserved key words
-reversed :: S.Set Text
-reversed = S.fromList
+reserved :: S.Set Text
+reserved = S.fromList
   [ "class"
   , "public"
   , "static"
@@ -89,7 +86,7 @@ identifierP = (lexeme . try) (p >>= check) <?> "Ideintifier"
       <$> many (char '_')
       <*> letterChar
       <*> many (char '_' <|> alphaNumChar)
-  check x = if x `S.member` reversed
+  check x = if x `S.member` reserved
     then fail $ "keyword" ++ show x ++ " cannot be an identifier"
     else return $ Identifier x
 
@@ -103,50 +100,79 @@ expressionP = label "Expression" $ makeExprParser basicExpressionP operatorP
 -- Unambiguous parts of Expressions
 basicExpressionP :: Parser Expression
 basicExpressionP =
-  (ETrue <$ symbol "true")
-    <|> (EFalse <$ symbol "false")
-    <|> (EInt <$> integerP)
-    <|> (EParen <$> paren expressionP)
-    <|> (EId <$> identifierP)
-    <|> (EThis <$ symbol "this")
+  (ETrue <$> getSourcePos <* symbol "true")
+    <|> (EFalse <$> getSourcePos <* symbol "false")
+    <|> (EInt <$> getSourcePos <*> integerP)
+    <|> (EParen <$> getSourcePos <*> paren expressionP)
+    <|> (EId <$> getSourcePos <*> identifierP)
+    <|> (EThis <$> (symbol "this" >> getSourcePos))
     <|> try newObjectP
     <|> try newArrayP
  where
-  newObjectP = ENewObj <$> do
+  newObjectP = do
+    pos <- getSourcePos
     idt <- symbol "new" >> identifierP
     symbol "(" >> symbol ")"
-    return idt
+    return $ ENewObj pos idt
   newArrayP =
-    ENewIntArr <$> (symbol "new" >> symbol "int" >> bracket expressionP)
+    ENewIntArr
+      <$> getSourcePos
+      <*> (symbol "new" >> symbol "int" >> bracket expressionP)
 
 -- Operators for Expressions
 -- To handle left recursive situations, method application,
 -- array indexing and array lenght are treated as operators
 operatorP :: [[Operator Parser Expression]]
 operatorP =
-  [ [ Postfix (flip EArrayIndex <$> bracket expressionP)
-    , Postfix arrayLenP
-    , Postfix methodP
+  [ [Postfix indexingP, Postfix arrayLenP, Postfix methodP]
+  , [ Prefix $ do
+        pos <- getSourcePos
+        symbol "!"
+        return $ \expr -> ENot pos expr
     ]
-  , [Prefix (ENot <$ symbol "!")]
-  , [InfixL (EBinary BMult <$ symbol "*")]
-  , [ InfixL (EBinary BPlus <$ symbol "+")
-    , InfixL (EBinary BMinus <$ symbol "-")
+  , [ InfixL $ do
+        pos <- getSourcePos
+        symbol "*"
+        return $ \expr1 expr2 -> EBinary pos BMult expr1 expr2
     ]
-  , [InfixL (EBinary BLT <$ symbol "<")]
-  , [InfixL (EBinary BAnd <$ symbol "&&")]
+  , [ InfixL $ do
+      pos <- getSourcePos
+      symbol "+"
+      return $ \expr1 expr2 -> EBinary pos BPlus expr1 expr2
+    , InfixL $ do
+      pos <- getSourcePos
+      symbol "-"
+      return $ \expr1 expr2 -> EBinary pos BMinus expr1 expr2
+    ]
+  , [ InfixL $ do
+        pos <- getSourcePos
+        symbol "<"
+        return $ \expr1 expr2 -> EBinary pos BLT expr1 expr2
+    ]
+  , [ InfixL $ do
+        pos <- getSourcePos
+        symbol "&&"
+        return $ \expr1 expr2 -> EBinary pos BAnd expr1 expr2
+    ]
   ]
  where
+  indexingP :: Parser (Expression -> Expression)
+  indexingP = do
+    pos <- getSourcePos
+    idx <- bracket expressionP
+    return $ \expr -> EArrayIndex pos expr idx
   arrayLenP :: Parser (Expression -> Expression)
   arrayLenP = try $ do
+    pos <- getSourcePos
     dotP >> symbol "length"
-    return $ \expr -> EArrayLength expr
+    return $ \expr -> EArrayLength pos expr
   methodP :: Parser (Expression -> Expression)
   methodP = try $ do
+    pos <- getSourcePos
     dotP
     idt     <- identifierP
     argList <- expressionListP
-    return $ \expr -> EMethodApp expr idt argList
+    return $ \expr -> EMethodApp pos expr idt argList
 
 typeP :: Parser Type
 typeP =
@@ -165,10 +191,10 @@ typeIdtPairP = do
 
 varDecP :: Parser VarDec
 varDecP = label "Variable Declaration" $ do
-  --pos      <- getSourcePos
+  pos      <- getSourcePos
   (t, idt) <- typeIdtPairP
   semiP
-  return $ VarDec t idt
+  return $ VarDec pos t idt
 
 statementP :: Parser Statement
 statementP =
@@ -185,24 +211,24 @@ statementP =
     predicate  <- paren expressionP
     bodyClause <- statementP
     symbol "else"
-    SIf predicate bodyClause <$> statementP
+    SIf predicate bodyClause <$> statementP <*> getSourcePos
   whileP = do
     symbol "while"
     predicate <- paren expressionP
-    SWhile predicate <$> statementP
+    SWhile predicate <$> statementP <*> getSourcePos
   printP = do
     symbol "System.out.println"
     expr <- paren expressionP
     semiP
-    return $ SPrint expr
+    SPrint expr <$> getSourcePos
   assignP = do
     idt <- identifierP
-    SAssignId idt <$> assignTail
+    SAssignId idt <$> assignTail <*> getSourcePos
   arrayAssignP = do
     idt <- identifierP
     idx <- bracket expressionP
-    SAssignArr idt idx <$> assignTail
-  blockStmtP = SBlock <$> (block . many) statementP
+    SAssignArr idt idx <$> assignTail <*> getSourcePos
+  blockStmtP = SBlock <$> (block . many) statementP <*> getSourcePos
   assignTail = do
     symbol "="
     expr <- expressionP
@@ -226,6 +252,7 @@ methodDecP = label "Method Declaration" $ do
   return $ MethodDec t idt argList vs ss result
   where argListP = paren $ sepBy typeIdtPairP commaP
 
+
 mainClassDecP :: Parser MainClass
 mainClassDecP = label "Main Class Declaration" $ do
   symbol "class"
@@ -238,6 +265,7 @@ mainClassDecP = label "Main Class Declaration" $ do
   symbol "}" >> symbol "}"
   return $ MainClass clsName argsName body
 
+
 classDecP :: Parser ClassDec
 classDecP = label "Class Declaration" $ do
   symbol "class"
@@ -248,6 +276,7 @@ classDecP = label "Class Declaration" $ do
   mets <- many methodDecP
   symbol "}"
   return $ ClassDec clsName superClass vars mets
+
 
 miniJavaP :: Parser MiniJavaAST
 miniJavaP = do

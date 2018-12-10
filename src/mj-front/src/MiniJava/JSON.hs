@@ -4,8 +4,6 @@ module MiniJava.JSON where
 import           Data.Aeson
 import           MiniJava.Symbol               as S
 import           Text.Megaparsec
-import           Text.Megaparsec.Pos
-import           Text.Megaparsec.Error
 import           Data.Void
 import qualified Data.ByteString.Lazy          as BS
 import           MiniJava.Parser               as P

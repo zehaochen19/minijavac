@@ -8,14 +8,13 @@ import           Data.Text                      ( Text )
 import           GHC.Generics
 import qualified Text.Megaparsec               as M
 
-data PosSymbol a = PosSymbol
-  { _sym :: a
-  , _pos :: M.SourcePos
-  }
 
 -- typeclass for showing symbols when errors occur
 class MiniJavaSymbol s where
   sShow :: s -> String
+
+class MiniJavaSymbol s => WithPos s where
+  getPos :: s -> M.SourcePos
 
 symbolsJoin :: MiniJavaSymbol s => Char -> [s] -> String
 symbolsJoin c ss = joined'
@@ -51,41 +50,60 @@ instance MiniJavaSymbol Type where
   sShow TBottom        = "⊥"
 
 data Expression
-  = EBinary BinOp
+  = EBinary M.SourcePos
+            BinOp
             Expression
             Expression
-  | EArrayIndex Expression
+  | EArrayIndex M.SourcePos
                 Expression
-  | EArrayLength Expression
-  | EMethodApp Expression
+                Expression
+  | EArrayLength M.SourcePos Expression
+  | EMethodApp M.SourcePos
+               Expression
                Identifier
                [Expression]
-  | EInt Integer
-  | ETrue
-  | EFalse
-  | EId Identifier
-  | EThis
-  | ENewIntArr Expression
-  | ENewObj Identifier
-  | ENot Expression
-  | EParen Expression
+  | EInt M.SourcePos Integer
+  | ETrue M.SourcePos
+  | EFalse M.SourcePos
+  | EId M.SourcePos Identifier
+  | EThis M.SourcePos
+  | ENewIntArr M.SourcePos Expression
+  | ENewObj M.SourcePos Identifier
+  | ENot M.SourcePos Expression
+  | EParen M.SourcePos Expression
   deriving (Eq, Show, Generic)
 
+
 instance MiniJavaSymbol Expression where
-  sShow (EBinary op e1 e2   ) = sShow e1 ++ " " ++ sShow op ++ " " ++ sShow e2
-  sShow (EArrayIndex arr idx) = sShow arr ++ "[" ++ sShow idx ++ "]"
-  sShow (EArrayLength arr   ) = sShow arr ++ ".length"
-  sShow (EMethodApp obj met args) =
+  sShow (EBinary  _ op e1 e2   ) = sShow e1 ++ " " ++ sShow op ++ " " ++ sShow e2
+  sShow (EArrayIndex _ arr idx ) = sShow arr ++ "[" ++ sShow idx ++ "]"
+  sShow (EArrayLength _ arr    ) = sShow arr ++ ".length"
+  sShow (EMethodApp _ obj met args ) =
     sShow obj ++ "." ++ sShow met ++ "(" ++ symbolsJoin ',' args ++ ")"
-  sShow (EInt i   )       = show i
-  sShow (EId  idtf)       = sShow idtf
-  sShow ETrue             = "true"
-  sShow EFalse            = "false"
-  sShow EThis             = "this"
-  sShow (ENewIntArr len ) = "new int[" ++ sShow len ++ "]"
-  sShow (ENewObj    c   ) = "new " ++ sShow c ++ "()"
-  sShow (ENot       expr) = '!' : sShow expr
-  sShow (EParen     expr) = '(' : sShow expr ++ ")"
+  sShow (EInt _  i       ) = show i
+  sShow (EId  _ idtf       ) = sShow idtf
+  sShow (ETrue  _         ) = "true"
+  sShow (EFalse _         ) = "false"
+  sShow (EThis  _         ) = "this"
+  sShow (ENewIntArr _ len  ) = "new int[" ++ sShow len ++ "]"
+  sShow (ENewObj _     c    ) = "new " ++ sShow c ++ "()"
+  sShow (ENot       _ expr ) = '!' : sShow expr
+  sShow (EParen     _ expr ) = '(' : sShow expr ++ ")"
+
+instance WithPos Expression where
+  getPos (EBinary pos _ _ _   ) = pos
+  getPos (EArrayIndex pos _ _  ) = pos
+  getPos (EArrayLength pos _   ) = pos
+  getPos (EMethodApp pos _ _ _ ) = pos
+  getPos (EInt  pos _           ) = pos
+  getPos (EId   pos _           ) = pos
+  getPos (ETrue  pos          ) = pos
+  getPos (EFalse pos          ) = pos
+  getPos (EThis  pos          ) = pos
+  getPos (ENewIntArr  pos _    ) = pos
+  getPos (ENewObj     pos _    ) = pos
+  getPos (ENot        pos _     ) = pos
+  getPos (EParen      pos _     ) = pos
 
 
 -- Binary Operators
@@ -105,34 +123,46 @@ instance MiniJavaSymbol BinOp where
   sShow BMult  = "*"
 
 data Statement
-  = SBlock [Statement]
+  = SBlock [Statement] M.SourcePos
   | SIf Expression
         Statement
         Statement
+        M.SourcePos
   | SWhile Expression
            Statement
-  | SPrint Expression
+           M.SourcePos
+  | SPrint Expression M.SourcePos
   | SAssignId Identifier
               Expression
+              M.SourcePos
   | SAssignArr Identifier
                Expression
                Expression
+               M.SourcePos
   deriving (Eq, Show, Generic)
 
+instance WithPos Statement where
+  getPos (SBlock _ pos        ) = pos
+  getPos (SIf _ _ _ pos       ) = pos
+  getPos (SWhile _ _ pos      ) = pos
+  getPos (SPrint _ pos        ) = pos
+  getPos (SAssignId _ _ pos   ) = pos
+  getPos (SAssignArr _ _ _ pos) = pos
+
 instance MiniJavaSymbol Statement where
-  sShow (SBlock statements) =
+  sShow (SBlock statements _) =
     "{ " ++ foldr (\s str -> sShow s ++ " " ++ str) "" statements ++ " }"
-  sShow (SIf pred trueClause falseClause) =
+  sShow (SIf pred trueClause falseClause _) =
     "if ("
       ++ sShow pred
       ++ ") "
       ++ sShow trueClause
       ++ " else "
       ++ sShow falseClause
-  sShow (SWhile pred body   ) = "while (" ++ sShow pred ++ ") " ++ sShow body
-  sShow (SPrint expr        ) = "System.out.println(" ++ sShow expr ++ ");"
-  sShow (SAssignId idtf expr) = sShow idtf ++ " = " ++ sShow expr ++ ";"
-  sShow (SAssignArr arr idx value) =
+  sShow (SWhile pred body _   ) = "while (" ++ sShow pred ++ ") " ++ sShow body
+  sShow (SPrint expr _        ) = "System.out.println(" ++ sShow expr ++ ");"
+  sShow (SAssignId idtf expr _) = sShow idtf ++ " = " ++ sShow expr ++ ";"
+  sShow (SAssignArr arr idx value _) =
     sShow arr ++ "[" ++ sShow idx ++ "] = " ++ sShow value ++ ";"
 
 
@@ -149,11 +179,14 @@ data ClassDec = ClassDec
   , _methods :: [MethodDec]
   } deriving (Eq, Show, Generic)
 
+
+
 data VarDec = VarDec
-  { _varType :: Type
+  { _varPos :: M.SourcePos
+  , _varType :: Type
   , _varId :: Identifier
-  --, _varPos :: M.SourcePos
   } deriving (Eq, Show, Generic)
+
 
 data MethodDec = MethodDec
   { _returnType :: Type

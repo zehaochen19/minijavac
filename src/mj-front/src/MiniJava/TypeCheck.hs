@@ -102,14 +102,14 @@ checkPred pred = do
   case predType of
     S.TBool   -> return ()
     S.TBottom -> return () -- errros in subexpression
-    ty ->
+    ty        -> do
       addError
         $  "Predicate expression: "
         ++ S.sShow pred
         ++ "\nExpected type: TBool"
         ++ "\nBut has: "
         ++ S.sShow ty
-  return ()
+      return ()
 
 -- Find the method info in the following order:
 -- 1. Scope defined by class identifier
@@ -181,16 +181,16 @@ findVarType' i = do
 
 checkStatement :: Monad m => S.Statement -> TC m ()
 -- Block
-checkStatement (S.SBlock stmts                   ) = mapM_ checkStatement stmts
+checkStatement (S.SBlock stmts _) = mapM_ checkStatement stmts
 -- If
-checkStatement (S.SIf pred trueBranch falseBranch) = do
+checkStatement (S.SIf pred trueBranch falseBranch _) = do
   checkPred pred
   checkStatement trueBranch
   checkStatement falseBranch
   return ()
 -- While
-checkStatement (S.SWhile pred stmt) = checkPred pred >> checkStatement stmt
-checkStatement (S.SPrint expr     ) = do
+checkStatement (S.SWhile pred stmt _) = checkPred pred >> checkStatement stmt
+checkStatement (S.SPrint expr _     ) = do
   ty <- checkExpr expr
   case ty of
     S.TBool -> return ()
@@ -203,7 +203,7 @@ checkStatement (S.SPrint expr     ) = do
         ++ S.sShow ty
         ++ " cannot be printed"
 -- Identifer Assignment
-checkStatement (S.SAssignId idtf expr) = do
+checkStatement (S.SAssignId idtf expr _) = do
   tyExpr <- checkExpr expr
   tyIdtf <- findVarType idtf
   if tyExpr == tyIdtf
@@ -219,7 +219,7 @@ checkStatement (S.SAssignId idtf expr) = do
       ++ "\nwith "
       ++ S.sShow expr
 -- Int Array Assignment
-checkStatement (S.SAssignArr idtf idxExpr expr) = do
+checkStatement (S.SAssignArr idtf idxExpr expr _) = do
   tyIdtf <- findVarType idtf
   tyIdx  <- checkExpr idxExpr
   tyExpr <- checkExpr expr
@@ -239,37 +239,37 @@ checkOrError expectedType actualType symbol = if expectedType == actualType
   else typeError expectedType actualType symbol >> return Nothing
 
 checkExpr :: Monad m => S.Expression -> TC m S.Type
-checkExpr S.ETrue       = return S.TBool
-checkExpr S.EFalse      = return S.TBool
-checkExpr (S.ENot expr) = do
+checkExpr (S.ETrue  _   ) = return S.TBool
+checkExpr (S.EFalse _   ) = return S.TBool
+checkExpr (S.ENot _ expr) = do
   tyExpr <- checkExpr expr
   result <- checkOrError S.TBool tyExpr expr
   return $ fromMaybe S.TBottom result
-checkExpr (S.EInt   _   ) = return S.TInt
-checkExpr (S.EParen expr) = checkExpr expr
-checkExpr (S.EId    idtf) = findVarType idtf
-checkExpr S.EThis         = do
+checkExpr (S.EInt   _ _   ) = return S.TInt
+checkExpr (S.EParen _ expr) = checkExpr expr
+checkExpr (S.EId    _ idtf) = findVarType idtf
+checkExpr (S.EThis _      ) = do
   maybeCls <- use curClass
   case maybeCls of
     Nothing ->
       addError "Not in a class scope when using this" >> return S.TBottom
     Just clsIdtf -> return $ S.TClass clsIdtf
-checkExpr s@(S.ENewObj idtf) = do
+checkExpr s@(S.ENewObj _ idtf) = do
   result <- fmap (\_ -> S.TClass idtf) . M.lookup idtf <$> use classes
   case result of
     Nothing -> do
       addError $ "Cannot find class " ++ S.sShow idtf ++ "\nin " ++ S.sShow s
       return S.TBool
     Just ty -> return ty
-checkExpr (S.ENewIntArr len) = do
+checkExpr (S.ENewIntArr _ len) = do
   tyLen <- checkExpr len
   checkOrError S.TInt tyLen len
   return S.TIntArray
-checkExpr (S.EArrayLength expr) = do
+checkExpr (S.EArrayLength _ expr) = do
   tyExpr <- checkExpr expr
   result <- checkOrError S.TIntArray tyExpr expr
   return $ maybe S.TBottom (const S.TInt) result
-checkExpr (S.EArrayIndex arr idx) = do
+checkExpr (S.EArrayIndex _ arr idx) = do
   tyArr  <- checkExpr arr
   tyIdx  <- checkExpr idx
   resArr <- checkOrError S.TIntArray tyArr arr
@@ -277,7 +277,7 @@ checkExpr (S.EArrayIndex arr idx) = do
   return $ case (resArr, resIdx) of
     (Just _, Just _) -> S.TInt
     _                -> S.TBottom
-checkExpr (S.EMethodApp obj met args) = do
+checkExpr (S.EMethodApp _ obj met args) = do
   tyObj <- checkExpr obj
   case tyObj of
     S.TClass cls -> do
@@ -303,7 +303,7 @@ checkExpr (S.EMethodApp obj met args) = do
         ++ " on non-class object"
         ++ S.sShow obj
       return S.TBottom
-checkExpr (S.EBinary op expr1 expr2)
+checkExpr (S.EBinary _ op expr1 expr2)
   | op `elem` [S.BPlus, S.BMinus, S.BMult] = checkOperands S.TInt S.TInt S.TInt
   | op == S.BLT = checkOperands S.TInt S.TInt S.TBool
   | op == S.BAnd = checkOperands S.TBool S.TBool S.TBool
