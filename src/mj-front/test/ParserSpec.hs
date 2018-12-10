@@ -160,19 +160,21 @@ methodDecPSpec = describe "MethodDec parser should parse" $ do
                      ""
                      "public int setValue(int a) { value = a; return value; }"
     `shouldBe` (Right $ MethodDec
+                 defaultPos
                  TInt
                  (Identifier "setValue")
                  [(TInt, Identifier "a")]
                  []
-                 [ SAssignId (Identifier "value")
+                 [ SAssignId (mkSrcPos 1 30)
+                             (Identifier "value")
                              (EId (mkSrcPos 1 38) (Identifier "a"))
-                             (mkSrcPos 1 41)
                  ]
                  (EId (mkSrcPos 1 48) (Identifier "value"))
                )
   it "a method containing a single return"
     $          parse methodDecP "" "public int getValue() { return value; }"
-    `shouldBe` (Right $ MethodDec TInt
+    `shouldBe` (Right $ MethodDec defaultPos
+                                  TInt
                                   (Identifier "getValue")
                                   []
                                   []
@@ -196,7 +198,7 @@ mainClassDecPSpec = describe "Main class parser should parse" $ do
     `shouldBe` (Right $ MainClass
                  (Identifier "Main")
                  (Identifier "args")
-                 (SPrint (EInt (mkSrcPos 1 73) 1) (mkSrcPos 1 76))
+                 (SPrint (mkSrcPos 1 54) (EInt (mkSrcPos 1 73) 1))
                )
   it "another main class declaration"
     $          parse
@@ -213,12 +215,12 @@ mainClassDecPSpec = describe "Main class parser should parse" $ do
                  (Identifier "QuickSort")
                  (Identifier "a")
                  (SPrint
+                   (mkSrcPos 1 53)
                    (EMethodApp (mkSrcPos 1 80)
                                (ENewObj (mkSrcPos 1 72) (Identifier "QS"))
                                (Identifier "Start")
                                [EInt (mkSrcPos 1 87) 10]
                    )
-                   (mkSrcPos 1 92)
                  )
                )
 
@@ -243,20 +245,22 @@ classDecPSpec =
                  [ VarDec (mkSrcPos 1 34) TInt  (Identifier "value")
                  , VarDec (mkSrcPos 1 44) TBool (Identifier "flag")
                  ]
-                 [ MethodDec TInt
+                 [ MethodDec (mkSrcPos 1 57)
+                             TInt
                              (Identifier "getValue")
                              []
                              []
                              []
                              (EId (mkSrcPos 1 88) (Identifier "value"))
                  , MethodDec
+                   (mkSrcPos 1 96)
                    TInt
                    (Identifier "setValue")
                    [(TInt, Identifier "a")]
                    []
-                   [ SAssignId (Identifier "value")
+                   [ SAssignId (mkSrcPos 1 125)
+                               (Identifier "value")
                                (EId (mkSrcPos 1 133) (Identifier "a"))
-                               (mkSrcPos 1 136)
                    ]
                    (EId (mkSrcPos 1 143) (Identifier "value"))
                  ]
@@ -270,5 +274,5 @@ miniJavaPSpec = describe "MiniJava parser should parse" $ do
   testWithSrc :: FilePath -> IO ()
   testWithSrc srcPath = do
     result <- parseFromSrc srcPath
-    print result
+    -- print result
     result `shouldSatisfy` isRight

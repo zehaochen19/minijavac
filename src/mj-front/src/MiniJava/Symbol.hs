@@ -13,7 +13,7 @@ import qualified Text.Megaparsec               as M
 class MiniJavaSymbol s where
   sShow :: s -> String
 
-class MiniJavaSymbol s => WithPos s where
+class WithPos s where
   getPos :: s -> M.SourcePos
 
 symbolsJoin :: MiniJavaSymbol s => Char -> [s] -> String
@@ -123,46 +123,45 @@ instance MiniJavaSymbol BinOp where
   sShow BMult  = "*"
 
 data Statement
-  = SBlock [Statement] M.SourcePos
-  | SIf Expression
+  = SBlock M.SourcePos [Statement]
+  | SIf M.SourcePos Expression
         Statement
         Statement
-        M.SourcePos
-  | SWhile Expression
+  | SWhile M.SourcePos
+          Expression
            Statement
-           M.SourcePos
-  | SPrint Expression M.SourcePos
-  | SAssignId Identifier
+  | SPrint M.SourcePos Expression
+  | SAssignId M.SourcePos
+              Identifier
               Expression
-              M.SourcePos
-  | SAssignArr Identifier
+  | SAssignArr M.SourcePos
+               Identifier
                Expression
                Expression
-               M.SourcePos
   deriving (Eq, Show, Generic)
 
 instance WithPos Statement where
-  getPos (SBlock _ pos        ) = pos
-  getPos (SIf _ _ _ pos       ) = pos
-  getPos (SWhile _ _ pos      ) = pos
-  getPos (SPrint _ pos        ) = pos
-  getPos (SAssignId _ _ pos   ) = pos
-  getPos (SAssignArr _ _ _ pos) = pos
+  getPos (SBlock  pos _        ) = pos
+  getPos (SIf pos _ _ _        ) = pos
+  getPos (SWhile  pos _ _      ) = pos
+  getPos (SPrint pos _         ) = pos
+  getPos (SAssignId pos _ _    ) = pos
+  getPos (SAssignArr pos _ _ _ ) = pos
 
 instance MiniJavaSymbol Statement where
-  sShow (SBlock statements _) =
+  sShow (SBlock _ statements ) =
     "{ " ++ foldr (\s str -> sShow s ++ " " ++ str) "" statements ++ " }"
-  sShow (SIf pred trueClause falseClause _) =
+  sShow (SIf  _ pred trueClause falseClause) =
     "if ("
       ++ sShow pred
       ++ ") "
       ++ sShow trueClause
       ++ " else "
       ++ sShow falseClause
-  sShow (SWhile pred body _   ) = "while (" ++ sShow pred ++ ") " ++ sShow body
-  sShow (SPrint expr _        ) = "System.out.println(" ++ sShow expr ++ ");"
-  sShow (SAssignId idtf expr _) = sShow idtf ++ " = " ++ sShow expr ++ ";"
-  sShow (SAssignArr arr idx value _) =
+  sShow (SWhile _ pred body    ) = "while (" ++ sShow pred ++ ") " ++ sShow body
+  sShow (SPrint  _ expr        ) = "System.out.println(" ++ sShow expr ++ ");"
+  sShow (SAssignId  _ idtf expr) = sShow idtf ++ " = " ++ sShow expr ++ ";"
+  sShow (SAssignArr _ arr idx value ) =
     sShow arr ++ "[" ++ sShow idx ++ "] = " ++ sShow value ++ ";"
 
 
@@ -189,13 +188,15 @@ data VarDec = VarDec
 
 
 data MethodDec = MethodDec
-  { _returnType :: Type
+  {  _metPos :: M.SourcePos
+  ,  _returnType :: Type
   , _methodId :: Identifier
   , _args :: [(Type, Identifier)]
   , _methodVars :: [VarDec]
   , _statements :: [Statement]
   , _retExp :: Expression
   } deriving (Eq, Show, Generic)
+
 
 data MiniJavaAST = MiniJavaAST
   { _mainClass :: MainClass
@@ -209,3 +210,6 @@ makeLenses ''ClassDec
 makeLenses ''MiniJavaAST
 
 makeLenses ''MethodDec
+
+instance WithPos MethodDec where
+  getPos metDec = metDec ^. metPos

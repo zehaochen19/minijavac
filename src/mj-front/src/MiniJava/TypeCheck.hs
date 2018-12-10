@@ -11,6 +11,7 @@ import           Data.Tuple                     ( swap )
 import qualified MiniJava.Symbol               as S
 import           MiniJava.TypeCheck.Type
 import           MiniJava.TypeCheck.Util
+import           Text.Megaparsec                ( SourcePos )
 
 typeCheck :: S.MiniJavaAST -> [T.Text]
 typeCheck ast =
@@ -46,8 +47,8 @@ checkClass classDec = do
 
 -- check all types of variables are in scope
 -- will return all types that are not in scope
-checkVarsTypeScope :: Monad m => VarTable -> TC m ()
-checkVarsTypeScope varTable = do
+checkVarsTypeScope :: Monad m => VarTable -> SourcePos -> TC m ()
+checkVarsTypeScope varTable pos = do
   classTable <- use classes
   let unscoped = M.filter (not . inScope classTable) varTable
   forM_
@@ -59,6 +60,7 @@ checkVarsTypeScope varTable = do
         ++ " has type "
         ++ S.sShow ty
         ++ "\nbut this type is not in scope"
+        ++ srcPosToString pos
     )
  where
   inScope :: ClassTable -> S.Type -> Bool
@@ -70,14 +72,16 @@ checkMethod :: Monad m => S.MethodDec -> TC m ()
 checkMethod methodDec = do
   curMethod .= (Just $ methodDec ^. S.methodId) -- update current method
   vars .= collectVars (methodDec ^. S.args) (methodDec ^. S.methodVars) -- update varaible table
-  use vars >>= checkVarsTypeScope
+  use vars >>= \varTable -> checkVarsTypeScope varTable $ S.getPos methodDec
   mapM_ checkStatement $ methodDec ^. S.statements
   -- Check return type
   tyRetExpr <- checkExpr $ methodDec ^. S.retExp
   let tyDecRet = methodDec ^. S.returnType
   if tyRetExpr == tyDecRet
     then return ()
-    else typeError tyDecRet tyRetExpr $ methodDec ^. S.retExp
+    else
+      let expr = methodDec ^. S.retExp
+      in  typeError tyDecRet tyRetExpr expr (S.getPos expr)
  where
   collectVars args varDecs =
     M.fromList
@@ -109,14 +113,19 @@ checkPred pred = do
         ++ "\nExpected type: TBool"
         ++ "\nBut has: "
         ++ S.sShow ty
+        ++ srcPosToString (S.getPos pred)
       return ()
 
 -- Find the method info in the following order:
 -- 1. Scope defined by class identifier
 -- 3. Supertype scope (until the topmost one) 
 findMetInfo
-  :: Monad m => S.Identifier -> S.Identifier -> TC m (Maybe MethodInfo)
-findMetInfo cls met = do
+  :: Monad m
+  => S.Identifier
+  -> S.Identifier
+  -> SourcePos
+  -> TC m (Maybe MethodInfo)
+findMetInfo cls met pos = do
   classTable <- use classes
   case M.lookup cls classTable of
     Nothing -> do
@@ -125,6 +134,7 @@ findMetInfo cls met = do
         ++ S.sShow cls
         ++ " when applying method "
         ++ S.sShow met
+        ++ srcPosToString pos
       return Nothing
     Just clsInfo -> do
       let maybeMetInfo = clsInfo ^. cMethods
@@ -132,19 +142,22 @@ findMetInfo cls met = do
         Nothing -> -- find method info in super class
                    case clsInfo ^. superClass of
           Nothing    -> return Nothing
-          Just super -> findMetInfo super met
+          Just super -> findMetInfo super met pos
         Just metInfo -> return $ Just metInfo
 
 -- Find the type of an identifer in the following order:
 -- 1. Current scope
 -- 2. Class scope
 -- 3. Supertype scope (until the topmost one)
-findVarType :: Monad m => S.Identifier -> TC m S.Type
-findVarType i = do
+findVarType :: Monad m => S.Identifier -> SourcePos -> TC m S.Type
+findVarType i pos = do
   ty <- findVarType' i
   case ty of
     S.TBottom -> do
-      addError $ "Cannot find type of variable " ++ S.sShow i
+      addError
+        $  "Cannot find type of variable "
+        ++ S.sShow i
+        ++ srcPosToString pos
       return S.TBottom
     ty -> return ty
 
@@ -181,16 +194,16 @@ findVarType' i = do
 
 checkStatement :: Monad m => S.Statement -> TC m ()
 -- Block
-checkStatement (S.SBlock stmts _) = mapM_ checkStatement stmts
+checkStatement (S.SBlock _ stmts) = mapM_ checkStatement stmts
 -- If
-checkStatement (S.SIf pred trueBranch falseBranch _) = do
+checkStatement (S.SIf _ pred trueBranch falseBranch) = do
   checkPred pred
   checkStatement trueBranch
   checkStatement falseBranch
   return ()
 -- While
-checkStatement (S.SWhile pred stmt _) = checkPred pred >> checkStatement stmt
-checkStatement (S.SPrint expr _     ) = do
+checkStatement (S.SWhile _ pred stmt) = checkPred pred >> checkStatement stmt
+checkStatement (S.SPrint pos expr   ) = do
   ty <- checkExpr expr
   case ty of
     S.TBool -> return ()
@@ -202,10 +215,11 @@ checkStatement (S.SPrint expr _     ) = do
         ++ "\nwith type: "
         ++ S.sShow ty
         ++ " cannot be printed"
+        ++ srcPosToString pos
 -- Identifer Assignment
-checkStatement (S.SAssignId idtf expr _) = do
+checkStatement (S.SAssignId pos idtf expr) = do
   tyExpr <- checkExpr expr
-  tyIdtf <- findVarType idtf
+  tyIdtf <- findVarType idtf pos
   if tyExpr == tyIdtf
     then return ()
     else
@@ -218,14 +232,15 @@ checkStatement (S.SAssignId idtf expr _) = do
       ++ S.sShow idtf
       ++ "\nwith "
       ++ S.sShow expr
+      ++ srcPosToString pos
 -- Int Array Assignment
-checkStatement (S.SAssignArr idtf idxExpr expr _) = do
-  tyIdtf <- findVarType idtf
+checkStatement (S.SAssignArr pos idtf idxExpr expr) = do
+  tyIdtf <- findVarType idtf pos
   tyIdx  <- checkExpr idxExpr
   tyExpr <- checkExpr expr
-  checkOrError S.TIntArray tyIdtf idtf
-  checkOrError S.TInt      tyIdx  idxExpr
-  checkOrError S.TInt      tyExpr expr
+  checkOrError S.TIntArray tyIdtf idtf    pos
+  checkOrError S.TInt      tyIdx  idxExpr pos
+  checkOrError S.TInt      tyExpr expr    pos
   return ()
 
 checkOrError
@@ -233,55 +248,62 @@ checkOrError
   => S.Type
   -> S.Type
   -> a
+  -> SourcePos
   -> TC m (Maybe S.Type)
-checkOrError expectedType actualType symbol = if expectedType == actualType
+checkOrError expectedType actualType symbol pos = if expectedType == actualType
   then return $ Just expectedType
-  else typeError expectedType actualType symbol >> return Nothing
+  else typeError expectedType actualType symbol pos >> return Nothing
 
 checkExpr :: Monad m => S.Expression -> TC m S.Type
-checkExpr (S.ETrue  _   ) = return S.TBool
-checkExpr (S.EFalse _   ) = return S.TBool
-checkExpr (S.ENot _ expr) = do
+checkExpr (S.ETrue  _     ) = return S.TBool
+checkExpr (S.EFalse _     ) = return S.TBool
+checkExpr (S.ENot pos expr) = do
   tyExpr <- checkExpr expr
-  result <- checkOrError S.TBool tyExpr expr
+  result <- checkOrError S.TBool tyExpr expr pos
   return $ fromMaybe S.TBottom result
-checkExpr (S.EInt   _ _   ) = return S.TInt
-checkExpr (S.EParen _ expr) = checkExpr expr
-checkExpr (S.EId    _ idtf) = findVarType idtf
-checkExpr (S.EThis _      ) = do
+checkExpr (S.EInt   _   _   ) = return S.TInt
+checkExpr (S.EParen _   expr) = checkExpr expr
+checkExpr (S.EId    pos idtf) = findVarType idtf pos
+checkExpr (S.EThis pos      ) = do
   maybeCls <- use curClass
   case maybeCls of
     Nothing ->
-      addError "Not in a class scope when using this" >> return S.TBottom
+      addError ("Not in a class scope when using this" ++ srcPosToString pos)
+        >> return S.TBottom
     Just clsIdtf -> return $ S.TClass clsIdtf
-checkExpr s@(S.ENewObj _ idtf) = do
+checkExpr s@(S.ENewObj pos idtf) = do
   result <- fmap (\_ -> S.TClass idtf) . M.lookup idtf <$> use classes
   case result of
     Nothing -> do
-      addError $ "Cannot find class " ++ S.sShow idtf ++ "\nin " ++ S.sShow s
+      addError
+        $  "Cannot find class "
+        ++ S.sShow idtf
+        ++ "\nin "
+        ++ S.sShow s
+        ++ srcPosToString pos
       return S.TBool
     Just ty -> return ty
-checkExpr (S.ENewIntArr _ len) = do
+checkExpr (S.ENewIntArr pos len) = do
   tyLen <- checkExpr len
-  checkOrError S.TInt tyLen len
+  checkOrError S.TInt tyLen len pos
   return S.TIntArray
-checkExpr (S.EArrayLength _ expr) = do
+checkExpr (S.EArrayLength pos expr) = do
   tyExpr <- checkExpr expr
-  result <- checkOrError S.TIntArray tyExpr expr
+  result <- checkOrError S.TIntArray tyExpr expr pos
   return $ maybe S.TBottom (const S.TInt) result
-checkExpr (S.EArrayIndex _ arr idx) = do
+checkExpr (S.EArrayIndex pos arr idx) = do
   tyArr  <- checkExpr arr
   tyIdx  <- checkExpr idx
-  resArr <- checkOrError S.TIntArray tyArr arr
-  resIdx <- checkOrError S.TInt tyIdx idx
+  resArr <- checkOrError S.TIntArray tyArr arr (S.getPos arr)
+  resIdx <- checkOrError S.TInt tyIdx idx (S.getPos idx)
   return $ case (resArr, resIdx) of
     (Just _, Just _) -> S.TInt
     _                -> S.TBottom
-checkExpr (S.EMethodApp _ obj met args) = do
+checkExpr (S.EMethodApp pos obj met args) = do
   tyObj <- checkExpr obj
   case tyObj of
     S.TClass cls -> do
-      metInfo <- findMetInfo cls met
+      metInfo <- findMetInfo cls met pos
       case metInfo of
         Nothing -> do
           addError
@@ -289,6 +311,7 @@ checkExpr (S.EMethodApp _ obj met args) = do
             ++ S.sShow met
             ++ " in class "
             ++ S.sShow cls
+            ++ srcPosToString pos
           return S.TBottom
         Just metInfo -> do
           let metArgsTypes = metInfo ^. argsInfo
@@ -302,6 +325,7 @@ checkExpr (S.EMethodApp _ obj met args) = do
         ++ S.sShow obj
         ++ " on non-class object"
         ++ S.sShow obj
+        ++ srcPosToString pos
       return S.TBottom
 checkExpr (S.EBinary _ op expr1 expr2)
   | op `elem` [S.BPlus, S.BMinus, S.BMult] = checkOperands S.TInt S.TInt S.TInt
@@ -311,8 +335,8 @@ checkExpr (S.EBinary _ op expr1 expr2)
   checkOperands ty1 ty2 resType = do
     tyExpr1 <- checkExpr expr1
     tyExpr2 <- checkExpr expr2
-    res1    <- checkOrError tyExpr1 ty1 expr1
-    res2    <- checkOrError tyExpr2 ty2 expr2
+    res1    <- checkOrError tyExpr1 ty1 expr1 (S.getPos expr1)
+    res2    <- checkOrError tyExpr2 ty2 expr2 (S.getPos expr2)
     return $ case (res1, res2) of
       (Just _, Just _) -> resType
       _                -> S.TBottom

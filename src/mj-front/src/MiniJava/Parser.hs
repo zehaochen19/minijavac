@@ -207,37 +207,42 @@ statementP =
     <|> blockStmtP
  where
   ifP = do
+    pos <- getSourcePos
     symbol "if"
     predicate  <- paren expressionP
     bodyClause <- statementP
     symbol "else"
-    SIf predicate bodyClause <$> statementP <*> getSourcePos
+    SIf pos predicate bodyClause <$> statementP
   whileP = do
+    pos <- getSourcePos
     symbol "while"
     predicate <- paren expressionP
-    SWhile predicate <$> statementP <*> getSourcePos
+    SWhile pos predicate <$> statementP
   printP = do
+    pos <- getSourcePos
     symbol "System.out.println"
     expr <- paren expressionP
     semiP
-    SPrint expr <$> getSourcePos
+    return $ SPrint pos expr
   assignP = do
+    pos <- getSourcePos
     idt <- identifierP
-    SAssignId idt <$> assignTail <*> getSourcePos
+    SAssignId pos idt <$> assignTail
   arrayAssignP = do
+    pos <- getSourcePos
     idt <- identifierP
     idx <- bracket expressionP
-    SAssignArr idt idx <$> assignTail <*> getSourcePos
-  blockStmtP = SBlock <$> (block . many) statementP <*> getSourcePos
+    SAssignArr pos idt idx <$> assignTail
+  blockStmtP = SBlock <$> getSourcePos <*> (block . many) statementP
   assignTail = do
     symbol "="
     expr <- expressionP
     semiP
     return expr
 
-
 methodDecP :: Parser MethodDec
 methodDecP = label "Method Declaration" $ do
+  pos <- getSourcePos
   symbol "public"
   t       <- typeP
   idt     <- identifierP
@@ -249,7 +254,7 @@ methodDecP = label "Method Declaration" $ do
   result <- expressionP
   semiP
   symbol "}"
-  return $ MethodDec t idt argList vs ss result
+  return $ MethodDec pos t idt argList vs ss result
   where argListP = paren $ sepBy typeIdtPairP commaP
 
 

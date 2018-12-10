@@ -10,10 +10,10 @@ jsonSpec = describe "compileToJSON" $ do
   it "should compile a LinkedList program" $ do
     json <- J.compileToJSON "test/cases/LinkedList.java"
     BS.writeFile "LinkedList.json" json
-    print json
+    --print json
     json `shouldSatisfy` (\res -> BS.length res > 0)
   it "should compile a BinaryTree program" $ do
     json <- J.compileToJSON "test/cases/BinaryTree.java"
     BS.writeFile "BinaryTree.json" json
-    print json
+    --print json
     json `shouldSatisfy` (\res -> BS.length res > 0)

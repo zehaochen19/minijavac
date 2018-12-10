@@ -209,34 +209,34 @@ checkStatementSpec = describe "checkStatement should" $ do
   it "check a identifier assignment" $ do
     let symbolTable = execState
           (checkStatement
-            (SAssignId (Identifier "num") (EInt defaultPos 1) defaultPos)
+            (SAssignId defaultPos (Identifier "num") (EInt defaultPos 1))
           )
           emptySymbolTable { _vars = M.fromList [(Identifier "num", TInt)] }
     symbolTable ^. errors `shouldBe` []
   it "check a array element assignment" $ do
     let
       symbolTable = execState
-        (checkStatement $ SAssignArr (Identifier "nums")
+        (checkStatement $ SAssignArr defaultPos
+                                     (Identifier "nums")
                                      (EInt defaultPos 0)
                                      (EInt defaultPos 0)
-                                     defaultPos
         )
         emptySymbolTable { _vars = M.fromList [(Identifier "nums", TIntArray)] }
     symbolTable ^. errors `shouldBe` []
   it "check a while statement" $ do
     let symbolTable = execState
-          (checkStatement $ SWhile (ETrue defaultPos)
-                                   (SPrint (EInt defaultPos 1) defaultPos)
-                                   defaultPos
+          (checkStatement $ SWhile defaultPos
+                                   (ETrue defaultPos)
+                                   (SPrint defaultPos (EInt defaultPos 1))
           )
           emptySymbolTable
     symbolTable ^. errors `shouldBe` []
   it "check a if statement" $ do
     let symbolTable = execState
-          (checkStatement $ SIf (ETrue defaultPos)
-                                (SPrint (EInt defaultPos 1) defaultPos)
-                                (SPrint (EInt defaultPos 2) defaultPos)
-                                defaultPos
+          (checkStatement $ SIf defaultPos
+                                (ETrue defaultPos)
+                                (SPrint defaultPos (EInt defaultPos 1))
+                                (SPrint defaultPos (EInt defaultPos 2))
           )
           emptySymbolTable
     symbolTable ^. errors `shouldBe` []
