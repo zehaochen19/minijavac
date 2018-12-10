@@ -10,6 +10,7 @@ import           MiniJava.Parser               as P
 import           MiniJava.TypeCheck            as TC
 import qualified Text.Megaparsec.Error         as ME
 import qualified Data.Text                     as T
+import qualified Data.Text.IO                  as TIO
 
 instance ToJSON Identifier
 
@@ -48,6 +49,8 @@ compileToJSON src = do
       return $ encode err
     Right ast -> do
       let checked = typeCheck ast
-      return $ case checked of
-        []       -> encode ast
-        tcErrors -> encode $ object ["errors" .= tcErrors]
+      case checked of
+        []       -> return $ encode ast
+        tcErrors -> do
+          mapM_ TIO.putStrLn tcErrors
+          return $ encode $ object ["errors" .= tcErrors]
