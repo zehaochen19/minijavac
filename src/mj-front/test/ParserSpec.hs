@@ -21,6 +21,9 @@ parserSpecs = do
   classDecPSpec
   miniJavaPSpec
 
+defaultPos = SourcePos "" (mkPos 1) (mkPos 1)
+mkSrcPos l c = SourcePos "" (mkPos l) (mkPos c)
+
 identifierPSpec :: Spec
 identifierPSpec = describe "Identifier parser should" $ do
   it "parse variables"
@@ -151,7 +154,7 @@ methodDecPSpec = describe "MethodDec parser should parse" $ do
                  TInt
                  (Identifier "func")
                  [(TInt, Identifier "a")]
-                 [VarDec TInt (Identifier "b")]
+                 [VarDec TInt (Identifier "b")]-- (mkSrcPos 1 25)
                  [ SAssignId (Identifier "b")
                              (EBinary BPlus (EId $ Identifier "a") (EInt 1))
                  ]
@@ -236,8 +239,8 @@ classDecPSpec =
     `shouldBe` (Right $ ClassDec
                  (Identifier "Node")
                  (Just $ Identifier "AbstractNode")
-                 [ VarDec TInt $ Identifier "value"
-                 , VarDec TBool $ Identifier "flag"
+                 [ VarDec TInt  (Identifier "value") --(mkSrcPos 1 34)
+                 , VarDec TBool (Identifier "flag")  --(mkSrcPos 1 44)
                  ]
                  [ MethodDec TInt
                              (Identifier "getValue")

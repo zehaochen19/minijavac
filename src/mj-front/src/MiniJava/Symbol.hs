@@ -6,19 +6,22 @@ module MiniJava.Symbol where
 import           Control.Lens
 import           Data.Text                      ( Text )
 import           GHC.Generics
+import qualified Text.Megaparsec               as M
 
+data PosSymbol a = PosSymbol
+  { _sym :: a
+  , _pos :: M.SourcePos
+  }
 
+-- typeclass for showing symbols when errors occur
+class MiniJavaSymbol s where
+  sShow :: s -> String
 
 symbolsJoin :: MiniJavaSymbol s => Char -> [s] -> String
 symbolsJoin c ss = joined'
  where
   joined  = foldr (\s str -> c : ' ' : sShow s ++ str) "" ss
   joined' = if null joined then joined else drop 2 joined
-
--- typeclass for showing symbols when errors occur
-class MiniJavaSymbol s where
-  sShow :: s -> String
-
 
 instance MiniJavaSymbol s => MiniJavaSymbol [s] where
   sShow ss = '[' : symbolsJoin ',' ss ++ "]"
@@ -41,11 +44,11 @@ data Type
   deriving (Eq, Show, Generic)
 
 instance MiniJavaSymbol Type where
-  sShow TInt = "int"
-  sShow TIntArray = "int[]"
-  sShow TBool = "boolean"
+  sShow TInt           = "int"
+  sShow TIntArray      = "int[]"
+  sShow TBool          = "boolean"
   sShow (TClass ident) = sShow ident
-  sShow TBottom = "⊥"
+  sShow TBottom        = "⊥"
 
 data Expression
   = EBinary BinOp
@@ -69,20 +72,20 @@ data Expression
   deriving (Eq, Show, Generic)
 
 instance MiniJavaSymbol Expression where
-  sShow (EBinary op e1 e2) = sShow e1 ++ " " ++ sShow op ++ " " ++ sShow e2
+  sShow (EBinary op e1 e2   ) = sShow e1 ++ " " ++ sShow op ++ " " ++ sShow e2
   sShow (EArrayIndex arr idx) = sShow arr ++ "[" ++ sShow idx ++ "]"
-  sShow (EArrayLength arr) = sShow arr ++ ".length"
+  sShow (EArrayLength arr   ) = sShow arr ++ ".length"
   sShow (EMethodApp obj met args) =
     sShow obj ++ "." ++ sShow met ++ "(" ++ symbolsJoin ',' args ++ ")"
-  sShow (EInt i) = show i
-  sShow (EId idtf) = sShow idtf
-  sShow ETrue = "true"
-  sShow EFalse = "false"
-  sShow EThis = "this"
-  sShow (ENewIntArr len) = "new int[" ++ sShow len ++ "]"
-  sShow (ENewObj c) = "new " ++ sShow c ++ "()"
-  sShow (ENot expr) = '!' : sShow expr
-  sShow (EParen expr) = '(' : sShow expr ++ ")"
+  sShow (EInt i   )       = show i
+  sShow (EId  idtf)       = sShow idtf
+  sShow ETrue             = "true"
+  sShow EFalse            = "false"
+  sShow EThis             = "this"
+  sShow (ENewIntArr len ) = "new int[" ++ sShow len ++ "]"
+  sShow (ENewObj    c   ) = "new " ++ sShow c ++ "()"
+  sShow (ENot       expr) = '!' : sShow expr
+  sShow (EParen     expr) = '(' : sShow expr ++ ")"
 
 
 -- Binary Operators
@@ -95,11 +98,11 @@ data BinOp
   deriving (Eq, Show, Generic)
 
 instance MiniJavaSymbol BinOp where
-  sShow BAnd = "&&"
-  sShow BLT = "<"
-  sShow BPlus = "+"
+  sShow BAnd   = "&&"
+  sShow BLT    = "<"
+  sShow BPlus  = "+"
   sShow BMinus = "-"
-  sShow BMult = "*"
+  sShow BMult  = "*"
 
 data Statement
   = SBlock [Statement]
@@ -118,14 +121,19 @@ data Statement
 
 instance MiniJavaSymbol Statement where
   sShow (SBlock statements) =
-    "{ " ++ foldr (\s str -> sShow s ++ " " ++  str) "" statements ++ " }"
+    "{ " ++ foldr (\s str -> sShow s ++ " " ++ str) "" statements ++ " }"
   sShow (SIf pred trueClause falseClause) =
-    "if (" ++ sShow pred ++ ") " ++ sShow trueClause ++ " else " ++ sShow falseClause
-  sShow (SWhile pred body) =
-    "while (" ++ sShow pred ++ ") " ++ sShow body
-  sShow (SPrint expr) = "System.out.println(" ++ sShow expr ++ ");"
+    "if ("
+      ++ sShow pred
+      ++ ") "
+      ++ sShow trueClause
+      ++ " else "
+      ++ sShow falseClause
+  sShow (SWhile pred body   ) = "while (" ++ sShow pred ++ ") " ++ sShow body
+  sShow (SPrint expr        ) = "System.out.println(" ++ sShow expr ++ ");"
   sShow (SAssignId idtf expr) = sShow idtf ++ " = " ++ sShow expr ++ ";"
-  sShow (SAssignArr arr idx value) = sShow arr ++ "[" ++ sShow idx ++ "] = " ++ sShow value ++ ";"
+  sShow (SAssignArr arr idx value) =
+    sShow arr ++ "[" ++ sShow idx ++ "] = " ++ sShow value ++ ";"
 
 
 data MainClass = MainClass
@@ -144,6 +152,7 @@ data ClassDec = ClassDec
 data VarDec = VarDec
   { _varType :: Type
   , _varId :: Identifier
+  --, _varPos :: M.SourcePos
   } deriving (Eq, Show, Generic)
 
 data MethodDec = MethodDec

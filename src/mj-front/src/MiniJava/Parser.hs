@@ -11,14 +11,18 @@ import           MiniJava.Symbol
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer    as L
+import qualified Text.Megaparsec.Error         as ME
+import qualified Data.List.NonEmpty            as NonEmpty
+
 
 type Parser = Parsec Void Text
 
-parseFromSrc
-  :: FilePath -> IO (Either (ParseError (Token Text) Void) MiniJavaAST)
+parseFromSrc :: FilePath -> IO (Either (ParseErrorBundle Text Void) MiniJavaAST)
 parseFromSrc src = do
   program <- TIO.readFile src
   return $ parse miniJavaP src program
+
+type ErrorStatement = Either (ParseError Text Void) Statement
 
 sc :: Parser ()
 sc = L.space space1 lineComment blockComment
@@ -45,13 +49,13 @@ integerP :: Parser Integer
 integerP = lexeme L.decimal
 
 semiP :: Parser Text
-semiP = symbol ";"
+semiP = symbol ";" <?> "semicolon"
 
 dotP :: Parser Text
-dotP = symbol "."
+dotP = symbol "." <?> "dot symbol"
 
 commaP :: Parser Text
-commaP = symbol ","
+commaP = symbol "," <?> "comma"
 
 -- Reserved key words
 reversed :: S.Set Text
@@ -161,6 +165,7 @@ typeIdtPairP = do
 
 varDecP :: Parser VarDec
 varDecP = label "Variable Declaration" $ do
+  --pos      <- getSourcePos
   (t, idt) <- typeIdtPairP
   semiP
   return $ VarDec t idt
@@ -204,6 +209,7 @@ statementP =
     semiP
     return expr
 
+
 methodDecP :: Parser MethodDec
 methodDecP = label "Method Declaration" $ do
   symbol "public"
@@ -238,8 +244,8 @@ classDecP = label "Class Declaration" $ do
   clsName    <- identifierP
   superClass <- optional $ try $ symbol "extends" >> identifierP
   symbol "{"
-  vars <- many $ try varDecP
-  mets <- many $ try methodDecP
+  vars <- many varDecP
+  mets <- many methodDecP
   symbol "}"
   return $ ClassDec clsName superClass vars mets
 
