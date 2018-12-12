@@ -100,7 +100,7 @@ checkExprSpec :: Spec
 checkExprSpec = do
   checkVariableSpec
   describe "checkExpr should" $ do
-    it "check this referencd" $ do
+    it "check this reference" $ do
       let (ty, symbolTable) = runState
             (checkExpr $ EThis defaultPos)
             emptySymbolTable { _curClass = Just $ Identifier "Node" }

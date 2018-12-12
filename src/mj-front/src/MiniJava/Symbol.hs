@@ -188,8 +188,8 @@ data VarDec = VarDec
 
 
 data MethodDec = MethodDec
-  {  _metPos :: M.SourcePos
-  ,  _returnType :: Type
+  { _metPos :: M.SourcePos
+  , _returnType :: Type
   , _methodId :: Identifier
   , _args :: [(Type, Identifier)]
   , _methodVars :: [VarDec]
