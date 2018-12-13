@@ -8,6 +8,7 @@ import           MiniJava.Symbol               as S
 import           MiniJava.TypeCheck
 import           MiniJava.TypeCheck.Type       as TC
 import           Test.Hspec
+import           ParserSpec                     ( defaultPos )
 
 typeCheckSpecs :: Spec
 typeCheckSpecs = do
@@ -47,7 +48,7 @@ checkVariableSpec :: Spec
 checkVariableSpec = describe "checkExprSpec should" $ do
   it "check a int variable in method scope" $ do
     let (ty, symbolTable) = runState
-          (checkExpr (EId $ Identifier "num"))
+          (checkExpr (EId defaultPos (Identifier "num")))
           (SymbolTable M.empty
                        M.empty
                        (M.fromList [(Identifier "num", TInt)])
@@ -58,37 +59,40 @@ checkVariableSpec = describe "checkExprSpec should" $ do
     symbolTable ^. errors `shouldBe` []
     ty `shouldBe` TInt
   it "complain when type of the variable cannot be found" $ do
-    let (ty, symbolTable) =
-          runState (checkExpr (EId $ Identifier "num")) emptySymbolTable
+    let (ty, symbolTable) = runState
+          (checkExpr (EId defaultPos (Identifier "num")))
+          emptySymbolTable
     symbolTable ^. errors `shouldSatisfy` not . null
     ty `shouldBe` TBottom
   it "should check a variable declared in superclass" $ do
-    let (ty, symbolTable) = runState
-          (checkExpr (EId $ Identifier "value"))
-          (emptySymbolTable
-            { _curClass   = Just $ Identifier "Node"
-            , _curMethod  = Just $ Identifier "getValue"
-            , TC._classes = M.fromList
-                              [ (Identifier "Node"        , nodeInfo)
-                              , (Identifier "AbstractNode", abstractNodeInfo)
-                              ]
-            }
-          )
+    let
+      (ty, symbolTable) = runState
+        (checkExpr (EId defaultPos (Identifier "value")))
+        (emptySymbolTable
+          { _curClass   = Just $ Identifier "Node"
+          , _curMethod  = Just $ Identifier "getValue"
+          , TC._classes = M.fromList
+                            [ (Identifier "Node"        , nodeInfo)
+                            , (Identifier "AbstractNode", abstractNodeInfo)
+                            ]
+          }
+        )
     symbolTable ^. errors `shouldBe` []
     ty `shouldBe` TInt
   it "should check a variable declare in superclass of superclass" $ do
-    let (ty, symbolTable) = runState
-          (checkExpr (EId $ Identifier "value"))
-          (emptySymbolTable
-            { _curClass   = Just $ Identifier "AnotherNode"
-            , _curMethod  = Just $ Identifier "getValue"
-            , TC._classes = M.fromList
-                              [ (Identifier "Node"        , nodeInfo)
-                              , (Identifier "AbstractNode", abstractNodeInfo)
-                              , (Identifier "AnotherNode" , anotherNodeInfo)
-                              ]
-            }
-          )
+    let
+      (ty, symbolTable) = runState
+        (checkExpr (EId defaultPos (Identifier "value")))
+        (emptySymbolTable
+          { _curClass   = Just $ Identifier "AnotherNode"
+          , _curMethod  = Just $ Identifier "getValue"
+          , TC._classes = M.fromList
+                            [ (Identifier "Node"        , nodeInfo)
+                            , (Identifier "AbstractNode", abstractNodeInfo)
+                            , (Identifier "AnotherNode" , anotherNodeInfo)
+                            ]
+          }
+        )
     symbolTable ^. errors `shouldBe` []
     ty `shouldBe` TInt
 
@@ -96,28 +100,34 @@ checkExprSpec :: Spec
 checkExprSpec = do
   checkVariableSpec
   describe "checkExpr should" $ do
-    it "check this referencd" $ do
+    it "check this reference" $ do
       let (ty, symbolTable) = runState
-            (checkExpr EThis)
+            (checkExpr $ EThis defaultPos)
             emptySymbolTable { _curClass = Just $ Identifier "Node" }
       symbolTable ^. errors `shouldBe` []
       ty `shouldBe` (TClass $ Identifier "Node")
     it "check a plus expression" $ do
-      let (ty, symbolTable) = runState
-            (checkExpr (EBinary BPlus (EInt 10) (EInt 20)))
-            emptySymbolTable
+      let
+        (ty, symbolTable) = runState
+          (checkExpr
+            (EBinary defaultPos BPlus (EInt defaultPos 10) (EInt defaultPos 20))
+          )
+          emptySymbolTable
       symbolTable ^. errors `shouldBe` []
       ty `shouldBe` TInt
     it "check a less than expression" $ do
-      let (ty, symbolTable) = runState
-            (checkExpr (EBinary BLT (EInt 1) (EInt 2)))
-            emptySymbolTable
+      let
+        (ty, symbolTable) = runState
+          (checkExpr
+            (EBinary defaultPos BLT (EInt defaultPos 1) (EInt defaultPos 2))
+          )
+          emptySymbolTable
       symbolTable ^. errors `shouldBe` []
       ty `shouldBe` TBool
     it "check a new Node object" $ do
       let
         (ty, symbolTable) = runState
-          (checkExpr (ENewObj $ Identifier "Node"))
+          (checkExpr (ENewObj defaultPos (Identifier "Node")))
           (emptySymbolTable
             { _curClass   = Just $ Identifier "AnotherNode"
             , _curMethod  = Just $ Identifier "getValue"
@@ -131,45 +141,56 @@ checkExprSpec = do
       ty `shouldBe` (TClass $ Identifier "Node")
       symbolTable ^. errors `shouldBe` []
     it "check a new int array" $ do
-      let (ty, symbolTable) =
-            runState (checkExpr (ENewIntArr $ EInt 42)) emptySymbolTable
+      let (ty, symbolTable) = runState
+            (checkExpr (ENewIntArr defaultPos (EInt defaultPos 42)))
+            emptySymbolTable
       ty `shouldBe` TIntArray
       symbolTable ^. errors `shouldBe` []
     it "check a int array length expression" $ do
       let (ty, symbolTable) = runState
-            (checkExpr $ EArrayLength (ENewIntArr $ EInt 42))
+            (checkExpr $ EArrayLength
+              defaultPos
+              (ENewIntArr defaultPos (EInt defaultPos 42))
+            )
             emptySymbolTable
       ty `shouldBe` TInt
       symbolTable ^. errors `shouldBe` []
     it "check a array indexing expression" $ do
       let (ty, symbolTable) = runState
-            (checkExpr $ EArrayIndex (ENewIntArr $ EInt 42) (EInt 0))
+            (checkExpr $ EArrayIndex
+              defaultPos
+              (ENewIntArr defaultPos (EInt defaultPos 42))
+              (EInt defaultPos 0)
+            )
             emptySymbolTable
       ty `shouldBe` TInt
       symbolTable ^. errors `shouldBe` []
     it "check a method application" $ do
-      let (ty, symbolTable) = runState
-            (checkExpr $ EMethodApp (EId $ Identifier "node")
-                                    (Identifier "setValue")
-                                    [EInt 10]
-            )
-            emptySymbolTable
-              { TC._classes = M.fromList
-                                [ (Identifier "Node"        , nodeInfo)
-                                , (Identifier "AbstractNode", abstractNodeInfo)
-                                , (Identifier "AnotherNode" , anotherNodeInfo)
-                                ]
-              , _vars       = M.fromList
-                                [(Identifier "node", TClass $ Identifier "Node")]
-              }
+      let
+        (ty, symbolTable) = runState
+          (checkExpr $ EMethodApp defaultPos
+                                  (EId defaultPos (Identifier "node"))
+                                  (Identifier "setValue")
+                                  [EInt defaultPos 10]
+          )
+          emptySymbolTable
+            { TC._classes = M.fromList
+                              [ (Identifier "Node"        , nodeInfo)
+                              , (Identifier "AbstractNode", abstractNodeInfo)
+                              , (Identifier "AnotherNode" , anotherNodeInfo)
+                              ]
+            , _vars       = M.fromList
+                              [(Identifier "node", TClass $ Identifier "Node")]
+            }
       ty `shouldBe` TInt
       symbolTable ^. errors `shouldBe` []
     it "check a inherited method application" $ do
       let
         (ty, symbolTable) = runState
-          (checkExpr $ EMethodApp (EId $ Identifier "node")
+          (checkExpr $ EMethodApp defaultPos
+                                  (EId defaultPos (Identifier "node"))
                                   (Identifier "setValue")
-                                  [EInt 10]
+                                  [EInt defaultPos 10]
           )
           emptySymbolTable
             { TC._classes = M.fromList
@@ -187,22 +208,35 @@ checkStatementSpec :: Spec
 checkStatementSpec = describe "checkStatement should" $ do
   it "check a identifier assignment" $ do
     let symbolTable = execState
-          (checkStatement (SAssignId (Identifier "num") (EInt 1)))
+          (checkStatement
+            (SAssignId defaultPos (Identifier "num") (EInt defaultPos 1))
+          )
           emptySymbolTable { _vars = M.fromList [(Identifier "num", TInt)] }
     symbolTable ^. errors `shouldBe` []
   it "check a array element assignment" $ do
-    let symbolTable = execState
-          (checkStatement $ SAssignArr (Identifier "nums") (EInt 0) (EInt 0))
-          emptySymbolTable { _vars = M.fromList [(Identifier "nums", TIntArray)]
-                           }
+    let
+      symbolTable = execState
+        (checkStatement $ SAssignArr defaultPos
+                                     (Identifier "nums")
+                                     (EInt defaultPos 0)
+                                     (EInt defaultPos 0)
+        )
+        emptySymbolTable { _vars = M.fromList [(Identifier "nums", TIntArray)] }
     symbolTable ^. errors `shouldBe` []
   it "check a while statement" $ do
     let symbolTable = execState
-          (checkStatement $ SWhile ETrue (SPrint $ EInt 1))
+          (checkStatement $ SWhile defaultPos
+                                   (ETrue defaultPos)
+                                   (SPrint defaultPos (EInt defaultPos 1))
+          )
           emptySymbolTable
     symbolTable ^. errors `shouldBe` []
   it "check a if statement" $ do
     let symbolTable = execState
-          (checkStatement $ SIf ETrue (SPrint $ EInt 1) (SPrint $ EInt 2))
+          (checkStatement $ SIf defaultPos
+                                (ETrue defaultPos)
+                                (SPrint defaultPos (EInt defaultPos 1))
+                                (SPrint defaultPos (EInt defaultPos 2))
+          )
           emptySymbolTable
     symbolTable ^. errors `shouldBe` []
