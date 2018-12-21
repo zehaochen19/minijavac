@@ -1,5 +1,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 
 module MiniJava.Symbol where
 
@@ -78,15 +82,15 @@ instance MiniJavaSymbol Expression where
   sShow (EBinary  _ op e1 e2   ) = sShow e1 ++ " " ++ sShow op ++ " " ++ sShow e2
   sShow (EArrayIndex _ arr idx ) = sShow arr ++ "[" ++ sShow idx ++ "]"
   sShow (EArrayLength _ arr    ) = sShow arr ++ ".length"
-  sShow (EMethodApp _ obj met args ) =
+  sShow (EMethodApp _ obj met args) =
     sShow obj ++ "." ++ sShow met ++ "(" ++ symbolsJoin ',' args ++ ")"
   sShow (EInt _  i       ) = show i
-  sShow (EId  _ idtf       ) = sShow idtf
-  sShow (ETrue  _         ) = "true"
+  sShow (EId  _ idtf     ) = sShow idtf
+  sShow (ETrue  _        ) = "true"
   sShow (EFalse _         ) = "false"
   sShow (EThis  _         ) = "this"
-  sShow (ENewIntArr _ len  ) = "new int[" ++ sShow len ++ "]"
-  sShow (ENewObj _     c    ) = "new " ++ sShow c ++ "()"
+  sShow (ENewIntArr _ len ) = "new int[" ++ sShow len ++ "]"
+  sShow (ENewObj _     c  ) = "new " ++ sShow c ++ "()"
   sShow (ENot       _ expr ) = '!' : sShow expr
   sShow (EParen     _ expr ) = '(' : sShow expr ++ ")"
 
@@ -181,14 +185,14 @@ data ClassDec = ClassDec
 
 
 data VarDec = VarDec
-  { _varPos :: M.SourcePos
+  { _pos :: M.SourcePos
   , _varType :: Type
   , _varId :: Identifier
   } deriving (Eq, Show, Generic)
 
 
 data MethodDec = MethodDec
-  { _metPos :: M.SourcePos
+  { _pos :: M.SourcePos
   , _returnType :: Type
   , _methodId :: Identifier
   , _args :: [(Type, Identifier)]
@@ -203,13 +207,13 @@ data MiniJavaAST = MiniJavaAST
   , _classes :: [ClassDec]
   } deriving (Eq, Show, Generic)
 
-makeLenses ''VarDec
+makeFieldsNoPrefix ''VarDec
 
 makeLenses ''ClassDec
 
 makeLenses ''MiniJavaAST
 
-makeLenses ''MethodDec
+makeFieldsNoPrefix ''MethodDec
 
 instance WithPos MethodDec where
-  getPos metDec = metDec ^. metPos
+  getPos metDec = metDec ^. pos
