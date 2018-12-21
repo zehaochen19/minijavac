@@ -33,6 +33,7 @@ dependencies:
   - mtl
   - hspec
   - aeson
+  - mmorph
 
 library:
   source-dirs: src

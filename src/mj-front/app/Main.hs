@@ -14,4 +14,3 @@ main = do
     _             -> do
       putStrLn "Usage: minijavac src.java output.json"
       exitFailure
-

@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 
 module ParserSpec where
@@ -6,9 +7,13 @@ module ParserSpec where
 import           Data.Either
 import           MiniJava.Parser
 import           MiniJava.Symbol
+import           MiniJava.Option
 import           Test.Hspec
 import           Text.Megaparsec
 import           Data.Text                     as T
+import           Data.Void
+import           Control.Monad.Identity
+import qualified Control.Monad.Reader          as R
 
 parserSpecs :: Spec
 parserSpecs = do
@@ -23,6 +28,16 @@ parserSpecs = do
 
 defaultPos = SourcePos "" (mkPos 1) (mkPos 1)
 mkSrcPos l c = SourcePos "" (mkPos l) (mkPos c)
+
+
+parseWithDefaultOpt
+  :: ParserT (R.Reader CompilerOption) a
+  -> String
+  -> Text
+  -> Either (ParseErrorBundle Text Void) a
+parseWithDefaultOpt p name s =
+  runIdentity $ R.runReaderT (runParserT p name s) (CompilerOption False)
+
 
 identifierPSpec :: Spec
 identifierPSpec = describe "Identifier parser should" $ do
@@ -116,17 +131,19 @@ expressionPSpec = describe "Expression parser should" $ do
 statementPSpec :: Spec
 statementPSpec = describe "Statement parser should parse" $ do
   it "a print statement"
-    $               parse statementP "" "System.out.println(1 + 2);"
+    $ parseWithDefaultOpt statementP "" "System.out.println(1 + 2);"
     `shouldSatisfy` isRight
-  it "a if assignment" $ parse statementP "" "a = 4;" `shouldSatisfy` isRight
+  it "a if assignment"
+    $               parseWithDefaultOpt statementP "" "a = 4;"
+    `shouldSatisfy` isRight
   it "an array assignment"
-    $               parse statementP "" "arr[4] = 1 + 2;"
+    $               parseWithDefaultOpt statementP "" "arr[4] = 1 + 2;"
     `shouldSatisfy` isRight
   it "an while statement"
-    $               parse statementP "" "while (a < 10) { a = a - 1; }"
+    $ parseWithDefaultOpt statementP "" "while (a < 10) { a = a - 1; }"
     `shouldSatisfy` isRight
   it "an if statement"
-    $               parse statementP "" "if (x) { a = 1; } else { b = 2; }"
+    $ parseWithDefaultOpt statementP "" "if (x) { a = 1; } else { b = 2; }"
     `shouldSatisfy` isRight
 
 varDecPSpec :: Spec
@@ -144,7 +161,7 @@ varDecPSpec = describe "VarDec parser should parse" $ do
 methodDecPSpec :: Spec
 methodDecPSpec = describe "MethodDec parser should parse" $ do
   it "a method declaration"
-    $               parse
+    $               parseWithDefaultOpt
                       (sc >> methodDecP)
                       ""
                       (  T.pack
@@ -156,9 +173,10 @@ methodDecPSpec = describe "MethodDec parser should parse" $ do
                       )
     `shouldSatisfy` isRight
   it "another method declaration"
-    $          parse (sc >> methodDecP)
-                     ""
-                     "public int setValue(int a) { value = a; return value; }"
+    $          parseWithDefaultOpt
+                 (sc >> methodDecP)
+                 ""
+                 "public int setValue(int a) { value = a; return value; }"
     `shouldBe` (Right $ MethodDec
                  defaultPos
                  TInt
@@ -172,7 +190,9 @@ methodDecPSpec = describe "MethodDec parser should parse" $ do
                  (EId (mkSrcPos 1 48) (Identifier "value"))
                )
   it "a method containing a single return"
-    $          parse methodDecP "" "public int getValue() { return value; }"
+    $          parseWithDefaultOpt methodDecP
+                                   ""
+                                   "public int getValue() { return value; }"
     `shouldBe` (Right $ MethodDec defaultPos
                                   TInt
                                   (Identifier "getValue")
@@ -185,7 +205,7 @@ methodDecPSpec = describe "MethodDec parser should parse" $ do
 mainClassDecPSpec :: Spec
 mainClassDecPSpec = describe "Main class parser should parse" $ do
   it "a main class declaration"
-    $          parse
+    $          parseWithDefaultOpt
                  (sc >> mainClassDecP)
                  ""
                  (  T.pack
@@ -201,7 +221,7 @@ mainClassDecPSpec = describe "Main class parser should parse" $ do
                  (SPrint (mkSrcPos 1 54) (EInt (mkSrcPos 1 73) 1))
                )
   it "another main class declaration"
-    $          parse
+    $          parseWithDefaultOpt
                  (sc >> mainClassDecP)
                  ""
                  (  T.pack
@@ -228,7 +248,7 @@ classDecPSpec :: Spec
 classDecPSpec =
   describe "Class declaration parser should parse"
     $          it "a class declaration"
-    $          parse
+    $          parseWithDefaultOpt
                  (sc >> classDecP)
                  ""
                  (  T.pack
