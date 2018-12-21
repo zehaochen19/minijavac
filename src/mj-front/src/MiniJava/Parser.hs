@@ -232,8 +232,8 @@ varDecP = label "Variable Declaration" $ do
   semiP
   return $ VarDec pos t idt
 
-statementFixP :: ConfigReader m => ParserT m Statement
-statementFixP =
+statementP :: ConfigReader m => ParserT m Statement
+statementP =
   label "Statement"
     $   printP
     <|> try assignP
@@ -242,34 +242,18 @@ statementFixP =
     <|> whileP
     <|> blockStmtP
  where
-  printP       = printBodyP >>= checkSemi
-  assignP      = assignBodyP >>= checkSemi
-  arrayAssignP = arrayAssignBodyP >>= checkSemi
+  printP       = printBodyP >>= postProcess
+  assignP      = assignBodyP >>= postProcess
+  arrayAssignP = arrayAssignBodyP >>= postProcess
+  postProcess :: ConfigReader m => Statement -> ParserT m Statement
+  postProcess s = do
+    (Config fixSemi) <- R.ask
+    if fixSemi then checkSemi s else s <$ semiP
   checkSemi p = do
     semi <- rawSemiP
     case semi of
       Right _   -> return p
       Left  err -> if expectSemi err then return p else undefined
-
-statementNoFixP :: ConfigReader m => ParserT m Statement
-statementNoFixP =
-  label "Statement"
-    $   printP
-    <|> try assignP
-    <|> try arrayAssignP
-    <|> ifP
-    <|> whileP
-    <|> blockStmtP
- where
-  printP       = printBodyP <* semiP
-  assignP      = assignBodyP <* semiP
-  arrayAssignP = arrayAssignBodyP <* semiP
-
-statementP :: ConfigReader m => ParserT m Statement
-statementP = do
-  (Config fixSemi) <- R.ask
-  if fixSemi then statementFixP else statementNoFixP
-
 
 blockStmtP :: ConfigReader m => ParserT m Statement
 blockStmtP = SBlock <$> getSourcePos <*> (block . many) statementP
