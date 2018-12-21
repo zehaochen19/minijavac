@@ -7,7 +7,7 @@ module ParserSpec where
 import           Data.Either
 import           MiniJava.Parser
 import           MiniJava.Symbol
-import           MiniJava.Option
+import           MiniJava.Config
 import           Test.Hspec
 import           Text.Megaparsec
 import           Data.Text                     as T
@@ -31,12 +31,12 @@ mkSrcPos l c = SourcePos "" (mkPos l) (mkPos c)
 
 
 parseWithDefaultOpt
-  :: ParserT (R.Reader CompilerOption) a
+  :: ParserT (R.Reader Config) a
   -> String
   -> Text
   -> Either (ParseErrorBundle Text Void) a
 parseWithDefaultOpt p name s =
-  runIdentity $ R.runReaderT (runParserT p name s) (CompilerOption False)
+  runIdentity $ R.runReaderT (runParserT p name s) (Config False)
 
 
 identifierPSpec :: Spec

@@ -14,7 +14,7 @@ module MiniJava.Parser
   , methodDecP
   , mainClassDecP
   , classDecP
-  , OptionReader
+  , ConfigReader
   )
 where
 
@@ -31,20 +31,20 @@ import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer    as L
 import           Control.Monad.Identity
 import qualified Control.Monad.Reader          as R
-import           MiniJava.Option
+import           MiniJava.Config
 import qualified Data.List.NonEmpty            as NE
 
 
 type Parser = Parsec Void Text
 type ParserT = ParsecT Void Text
 
-type OptionReader =  R.MonadReader CompilerOption
+type ConfigReader =  R.MonadReader Config
 
 parseFromSrc :: FilePath -> IO (Either (ParseErrorBundle Text Void) MiniJavaAST)
 parseFromSrc src = do
   program <- TIO.readFile src
   return $ runIdentity $ R.runReaderT (runParserT miniJavaP src program)
-                                      (CompilerOption False)
+                                      (Config False)
 
 sc :: ParserT m ()
 sc = L.space space1 lineComment blockComment
@@ -232,7 +232,7 @@ varDecP = label "Variable Declaration" $ do
   semiP
   return $ VarDec pos t idt
 
-statementFixP :: OptionReader m => ParserT m Statement
+statementFixP :: ConfigReader m => ParserT m Statement
 statementFixP =
   label "Statement"
     $   printP
@@ -251,7 +251,7 @@ statementFixP =
       Right _   -> return p
       Left  err -> if expectSemi err then return p else undefined
 
-statementNoFixP :: OptionReader m => ParserT m Statement
+statementNoFixP :: ConfigReader m => ParserT m Statement
 statementNoFixP =
   label "Statement"
     $   printP
@@ -265,16 +265,16 @@ statementNoFixP =
   assignP      = assignBodyP <* semiP
   arrayAssignP = arrayAssignBodyP <* semiP
 
-statementP :: OptionReader m => ParserT m Statement
+statementP :: ConfigReader m => ParserT m Statement
 statementP = do
-  (CompilerOption fixSemi) <- R.ask
+  (Config fixSemi) <- R.ask
   if fixSemi then statementFixP else statementNoFixP
 
 
-blockStmtP :: OptionReader m => ParserT m Statement
+blockStmtP :: ConfigReader m => ParserT m Statement
 blockStmtP = SBlock <$> getSourcePos <*> (block . many) statementP
 
-ifP :: OptionReader m => ParserT m Statement
+ifP :: ConfigReader m => ParserT m Statement
 ifP = do
   pos <- getSourcePos
   symbol "if"
@@ -283,7 +283,7 @@ ifP = do
   symbol "else"
   SIf pos predicate bodyClause <$> statementP
 
-whileP :: OptionReader m => ParserT m Statement
+whileP :: ConfigReader m => ParserT m Statement
 whileP = do
   pos <- getSourcePos
   symbol "while"
@@ -314,7 +314,7 @@ assignTail :: ParserT m Expression
 assignTail = symbol "=" >> expressionP
 
 
-methodDecP :: OptionReader m => ParserT m MethodDec
+methodDecP :: ConfigReader m => ParserT m MethodDec
 methodDecP = label "Method Declaration" $ do
   pos <- getSourcePos
   symbol "public"
@@ -332,7 +332,7 @@ methodDecP = label "Method Declaration" $ do
   where argListP = paren $ sepBy typeIdtPairP commaP
 
 
-mainClassDecP :: OptionReader m => ParserT m MainClass
+mainClassDecP :: ConfigReader m => ParserT m MainClass
 mainClassDecP = label "Main Class Declaration" $ do
   symbol "class"
   clsName <- identifierP
@@ -345,7 +345,7 @@ mainClassDecP = label "Main Class Declaration" $ do
   return $ MainClass clsName argsName body
 
 
-classDecP :: OptionReader m => ParserT m ClassDec
+classDecP :: ConfigReader m => ParserT m ClassDec
 classDecP = label "Class Declaration" $ do
   symbol "class"
   clsName    <- identifierP
@@ -357,7 +357,7 @@ classDecP = label "Class Declaration" $ do
   return $ ClassDec clsName superClass vars mets
 
 
-miniJavaP :: ParserT (R.Reader CompilerOption) MiniJavaAST
+miniJavaP :: ParserT (R.Reader Config) MiniJavaAST
 miniJavaP = do
   sc
   mc   <- mainClassDecP
