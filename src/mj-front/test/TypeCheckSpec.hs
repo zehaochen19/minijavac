@@ -4,6 +4,7 @@ import           Control.Lens
 import           Control.Monad.State
 import qualified Data.Map                      as M
 import           MiniJava.Parser
+import           MiniJava.Config
 import           MiniJava.Symbol               as S
 import           MiniJava.TypeCheck
 import           MiniJava.TypeCheck.Type       as TC
@@ -23,7 +24,7 @@ typeCheckSpec = describe "typeCheck should check" $ do
  where
   testWithSrc :: FilePath -> IO ()
   testWithSrc srcPath = do
-    ast <- parseFromSrc srcPath
+    ast <- parseFromSrc srcPath (Config False)
     let errors = typeCheck <$> ast
     errors `shouldBe` Right []
 

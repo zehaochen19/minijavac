@@ -1,4 +1,22 @@
-module MiniJava.Parser where
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ConstraintKinds #-}
+
+module MiniJava.Parser
+  ( Parser
+  , ParserT
+  , parseFromSrc
+  , identifierP
+  , expressionP
+  , statementP
+  , varDecP
+  , sc
+  , methodDecP
+  , mainClassDecP
+  , classDecP
+  , ConfigReader
+  )
+where
 
 import           Control.Monad.Combinators.Expr
 import           Data.Functor                   ( ($>) )
@@ -11,45 +29,66 @@ import           MiniJava.Symbol
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer    as L
+import           Control.Monad.Identity
+import qualified Control.Monad.Reader          as R
+import           MiniJava.Config
+import qualified Data.List.NonEmpty            as NE
+
 
 type Parser = Parsec Void Text
+type ParserT = ParsecT Void Text
 
-parseFromSrc :: FilePath -> IO (Either (ParseErrorBundle Text Void) MiniJavaAST)
-parseFromSrc src = do
+type ConfigReader =  R.MonadReader Config
+
+parseFromSrc
+  :: FilePath -> Config -> IO (Either (ParseErrorBundle Text Void) MiniJavaAST)
+parseFromSrc src cfg = do
   program <- TIO.readFile src
-  return $ parse miniJavaP src program
+  return $ runIdentity $ R.runReaderT (runParserT miniJavaP src program) cfg
 
-sc :: Parser ()
+sc :: ParserT m ()
 sc = L.space space1 lineComment blockComment
  where
   lineComment  = L.skipLineComment "//"
   blockComment = L.skipBlockComment "/*" "*/"
 
-lexeme :: Parser a -> Parser a
+lexeme :: ParserT m a -> ParserT m a
 lexeme = L.lexeme sc
 
-symbol :: Text -> Parser Text
+symbol :: Text -> ParserT m Text
 symbol = L.symbol sc
 
-paren :: Parser a -> Parser a
+paren :: ParserT m a -> ParserT m a
 paren = between (symbol "(") (symbol ")")
 
-block :: Parser a -> Parser a
+block :: ParserT m a -> ParserT m a
 block = between (symbol "{") (symbol "}")
 
-bracket :: Parser a -> Parser a
+bracket :: ParserT m a -> ParserT m a
 bracket = between (symbol "[") (symbol "]")
 
-integerP :: Parser Integer
+integerP :: ParserT m Integer
 integerP = lexeme L.decimal
 
-semiP :: Parser Text
-semiP = symbol ";" <?> "semicolon"
+data Semi = Semi
 
-dotP :: Parser Text
+type RawSemi s e = Either (ParseError s e) Semi
+
+semiP :: ParserT m Semi
+semiP = Semi <$ symbol ";" <?> "semicolon"
+
+rawSemiP :: ParserT m (RawSemi Text Void)
+rawSemiP = withRecovery (pure . Left) (Right <$> semiP)
+
+expectSemi :: ParseError Text Void -> Bool
+expectSemi (TrivialError _ _ expected) =
+  S.member (Label $ NE.fromList "semicolon") expected
+expectSemi (FancyError _ _) = False
+
+dotP :: ParserT m Text
 dotP = symbol "." <?> "dot symbol"
 
-commaP :: Parser Text
+commaP :: ParserT m Text
 commaP = symbol "," <?> "comma"
 
 -- Reserved key words
@@ -75,7 +114,7 @@ reserved = S.fromList
 
 -- Identifiers should start with [0..] underscores and an alphabet
 -- and shouldn't be a reserved keyword
-identifierP :: Parser Identifier
+identifierP :: ParserT m Identifier
 identifierP = (lexeme . try) (p >>= check) <?> "Ideintifier"
  where
   p =
@@ -88,15 +127,15 @@ identifierP = (lexeme . try) (p >>= check) <?> "Ideintifier"
     then fail $ "keyword" ++ show x ++ " cannot be an identifier"
     else return $ Identifier x
 
-expressionListP :: Parser [Expression]
+expressionListP :: ParserT m [Expression]
 expressionListP =
   label "List of Expressions" $ paren $ sepBy expressionP commaP
 
-expressionP :: Parser Expression
+expressionP :: ParserT m Expression
 expressionP = label "Expression" $ makeExprParser basicExpressionP operatorP
 
 -- Unambiguous parts of Expressions
-basicExpressionP :: Parser Expression
+basicExpressionP :: ParserT m Expression
 basicExpressionP =
   (ETrue <$> getSourcePos <* symbol "true")
     <|> (EFalse <$> getSourcePos <* symbol "false")
@@ -120,7 +159,7 @@ basicExpressionP =
 -- Operators for Expressions
 -- To handle left recursive situations, method application,
 -- array indexing and array lenght are treated as operators
-operatorP :: [[Operator Parser Expression]]
+operatorP :: [[Operator (ParserT m) Expression]]
 operatorP =
   [ [Postfix indexingP, Postfix arrayLenP, Postfix methodP]
   , [ Prefix $ do
@@ -154,17 +193,17 @@ operatorP =
     ]
   ]
  where
-  indexingP :: Parser (Expression -> Expression)
+  indexingP :: ParserT m (Expression -> Expression)
   indexingP = do
     pos <- getSourcePos
     idx <- bracket expressionP
     return $ \expr -> EArrayIndex pos expr idx
-  arrayLenP :: Parser (Expression -> Expression)
+  arrayLenP :: ParserT m (Expression -> Expression)
   arrayLenP = try $ do
     pos <- getSourcePos
     dotP >> symbol "length"
     return $ \expr -> EArrayLength pos expr
-  methodP :: Parser (Expression -> Expression)
+  methodP :: ParserT m (Expression -> Expression)
   methodP = try $ do
     pos <- getSourcePos
     dotP
@@ -172,7 +211,7 @@ operatorP =
     argList <- expressionListP
     return $ \expr -> EMethodApp pos expr idt argList
 
-typeP :: Parser Type
+typeP :: ParserT m Type
 typeP =
   label "Type"
     $   try intArrP
@@ -181,20 +220,20 @@ typeP =
     <|> (TClass <$> identifierP)
   where intArrP = symbol "int" *> symbol "[" *> symbol "]" $> TIntArray
 
-typeIdtPairP :: Parser (Type, Identifier)
+typeIdtPairP :: ParserT m (Type, Identifier)
 typeIdtPairP = do
   t   <- typeP
   idt <- identifierP
   return (t, idt)
 
-varDecP :: Parser VarDec
+varDecP :: ParserT m VarDec
 varDecP = label "Variable Declaration" $ do
   pos      <- getSourcePos
   (t, idt) <- typeIdtPairP
   semiP
   return $ VarDec pos t idt
 
-statementP :: Parser Statement
+statementP :: ConfigReader m => ParserT m Statement
 statementP =
   label "Statement"
     $   printP
@@ -204,6 +243,16 @@ statementP =
     <|> whileP
     <|> blockStmtP
  where
+  printP       = printBodyP >>= postProcess
+  assignP      = assignBodyP >>= postProcess
+  arrayAssignP = arrayAssignBodyP >>= postProcess
+  postProcess :: ConfigReader m => Statement -> ParserT m Statement
+  postProcess s = do
+    semiP'
+    return s
+  blockStmtP :: ConfigReader m => ParserT m Statement
+  blockStmtP = SBlock <$> getSourcePos <*> (block . many) statementP
+  ifP :: ConfigReader m => ParserT m Statement
   ifP = do
     pos <- getSourcePos
     symbol "if"
@@ -211,34 +260,46 @@ statementP =
     bodyClause <- statementP
     symbol "else"
     SIf pos predicate bodyClause <$> statementP
+  whileP :: ConfigReader m => ParserT m Statement
   whileP = do
     pos <- getSourcePos
     symbol "while"
     predicate <- paren expressionP
     SWhile pos predicate <$> statementP
-  printP = do
+  printBodyP :: ParserT m Statement
+  printBodyP = do
     pos <- getSourcePos
     symbol "System.out.println"
     expr <- paren expressionP
-    semiP
     return $ SPrint pos expr
-  assignP = do
+  assignBodyP :: ParserT m Statement
+  assignBodyP = do
     pos <- getSourcePos
     idt <- identifierP
     SAssignId pos idt <$> assignTail
-  arrayAssignP = do
+  arrayAssignBodyP :: ParserT m Statement
+  arrayAssignBodyP = do
     pos <- getSourcePos
     idt <- identifierP
     idx <- bracket expressionP
     SAssignArr pos idt idx <$> assignTail
-  blockStmtP = SBlock <$> getSourcePos <*> (block . many) statementP
-  assignTail = do
-    symbol "="
-    expr <- expressionP
-    semiP
-    return expr
+  assignTail :: ParserT m Expression
+  assignTail = symbol "=" >> expressionP
 
-methodDecP :: Parser MethodDec
+semiP' :: ConfigReader m => ParserT m Semi
+semiP' = do
+  (Config fixSemi) <- R.ask
+  if fixSemi then recover else semiP
+ where
+  recover = do
+    semi <- rawSemiP
+    case semi of
+      Right _ -> return Semi
+      Left err@(TrivialError _ unexpected expected) ->
+        if expectSemi err then return Semi else failure unexpected expected
+      Left (FancyError _ err) -> fancyFailure err
+
+methodDecP :: ConfigReader m => ParserT m MethodDec
 methodDecP = label "Method Declaration" $ do
   pos <- getSourcePos
   symbol "public"
@@ -250,13 +311,13 @@ methodDecP = label "Method Declaration" $ do
   ss <- many $ try statementP
   symbol "return"
   result <- expressionP
-  semiP
+  semiP'
   symbol "}"
   return $ MethodDec pos t idt argList vs ss result
   where argListP = paren $ sepBy typeIdtPairP commaP
 
 
-mainClassDecP :: Parser MainClass
+mainClassDecP :: ConfigReader m => ParserT m MainClass
 mainClassDecP = label "Main Class Declaration" $ do
   symbol "class"
   clsName <- identifierP
@@ -269,7 +330,7 @@ mainClassDecP = label "Main Class Declaration" $ do
   return $ MainClass clsName argsName body
 
 
-classDecP :: Parser ClassDec
+classDecP :: ConfigReader m => ParserT m ClassDec
 classDecP = label "Class Declaration" $ do
   symbol "class"
   clsName    <- identifierP
@@ -281,7 +342,7 @@ classDecP = label "Class Declaration" $ do
   return $ ClassDec clsName superClass vars mets
 
 
-miniJavaP :: Parser MiniJavaAST
+miniJavaP :: ParserT (R.Reader Config) MiniJavaAST
 miniJavaP = do
   sc
   mc   <- mainClassDecP
