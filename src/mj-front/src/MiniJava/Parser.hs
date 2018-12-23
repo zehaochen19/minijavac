@@ -40,11 +40,11 @@ type ParserT = ParsecT Void Text
 
 type ConfigReader =  R.MonadReader Config
 
-parseFromSrc :: FilePath -> IO (Either (ParseErrorBundle Text Void) MiniJavaAST)
-parseFromSrc src = do
+parseFromSrc
+  :: FilePath -> Config -> IO (Either (ParseErrorBundle Text Void) MiniJavaAST)
+parseFromSrc src cfg = do
   program <- TIO.readFile src
-  return $ runIdentity $ R.runReaderT (runParserT miniJavaP src program)
-                                      (Config False)
+  return $ runIdentity $ R.runReaderT (runParserT miniJavaP src program) cfg
 
 sc :: ParserT m ()
 sc = L.space space1 lineComment blockComment
@@ -83,6 +83,7 @@ rawSemiP = withRecovery (pure . Left) (Right <$> semiP)
 expectSemi :: ParseError Text Void -> Bool
 expectSemi (TrivialError _ _ expected) =
   S.member (Label $ NE.fromList "semicolon") expected
+expectSemi (FancyError _ _) = False
 
 dotP :: ParserT m Text
 dotP = symbol "." <?> "dot symbol"
@@ -247,13 +248,22 @@ statementP =
   arrayAssignP = arrayAssignBodyP >>= postProcess
   postProcess :: ConfigReader m => Statement -> ParserT m Statement
   postProcess s = do
-    (Config fixSemi) <- R.ask
-    if fixSemi then checkSemi s else s <$ semiP
-  checkSemi p = do
+    semiP'
+    return s
+
+semiP' :: ConfigReader m => ParserT m Semi
+semiP' = do
+  (Config fixSemi) <- R.ask
+  if fixSemi then recover else semiP
+ where
+  recover = do
     semi <- rawSemiP
     case semi of
-      Right _   -> return p
-      Left  err -> if expectSemi err then return p else undefined
+      Right _ -> return Semi
+      Left err@(TrivialError _ unexpected expected) ->
+        if expectSemi err then return Semi else failure unexpected expected
+      Left (FancyError _ err) -> fancyFailure err
+
 
 blockStmtP :: ConfigReader m => ParserT m Statement
 blockStmtP = SBlock <$> getSourcePos <*> (block . many) statementP
@@ -310,7 +320,7 @@ methodDecP = label "Method Declaration" $ do
   ss <- many $ try statementP
   symbol "return"
   result <- expressionP
-  semiP
+  semiP'
   symbol "}"
   return $ MethodDec pos t idt argList vs ss result
   where argListP = paren $ sepBy typeIdtPairP commaP

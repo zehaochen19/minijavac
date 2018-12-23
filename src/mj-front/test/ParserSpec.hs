@@ -293,6 +293,6 @@ miniJavaPSpec = describe "MiniJava parser should parse" $ do
  where
   testWithSrc :: FilePath -> IO ()
   testWithSrc srcPath = do
-    result <- parseFromSrc srcPath
+    result <- parseFromSrc srcPath (Config False)
     -- print result
     result `shouldSatisfy` isRight

@@ -3,6 +3,7 @@ module MiniJava.JSON where
 
 import           Data.Aeson
 import           MiniJava.Symbol               as S
+import           MiniJava.Config
 import           Text.Megaparsec
 import           Data.Void
 import qualified Data.ByteString.Lazy          as BS
@@ -40,9 +41,9 @@ instance ToJSON SourcePos where
   toJSON (SourcePos _ srcLine srcCol) =
     object ["line" .= unPos srcLine, "column" .= unPos srcCol]
 
-compileToJSON :: FilePath -> IO BS.ByteString
-compileToJSON src = do
-  result <- P.parseFromSrc src
+compileToJSON :: FilePath -> Config -> IO BS.ByteString
+compileToJSON src cfg = do
+  result <- P.parseFromSrc src cfg
   case result of
     Left err -> do
       putStrLn $ ME.errorBundlePretty err
