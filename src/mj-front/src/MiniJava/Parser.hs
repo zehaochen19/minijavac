@@ -250,6 +250,41 @@ statementP =
   postProcess s = do
     semiP'
     return s
+  blockStmtP :: ConfigReader m => ParserT m Statement
+  blockStmtP = SBlock <$> getSourcePos <*> (block . many) statementP
+  ifP :: ConfigReader m => ParserT m Statement
+  ifP = do
+    pos <- getSourcePos
+    symbol "if"
+    predicate  <- paren expressionP
+    bodyClause <- statementP
+    symbol "else"
+    SIf pos predicate bodyClause <$> statementP
+  whileP :: ConfigReader m => ParserT m Statement
+  whileP = do
+    pos <- getSourcePos
+    symbol "while"
+    predicate <- paren expressionP
+    SWhile pos predicate <$> statementP
+  printBodyP :: ParserT m Statement
+  printBodyP = do
+    pos <- getSourcePos
+    symbol "System.out.println"
+    expr <- paren expressionP
+    return $ SPrint pos expr
+  assignBodyP :: ParserT m Statement
+  assignBodyP = do
+    pos <- getSourcePos
+    idt <- identifierP
+    SAssignId pos idt <$> assignTail
+  arrayAssignBodyP :: ParserT m Statement
+  arrayAssignBodyP = do
+    pos <- getSourcePos
+    idt <- identifierP
+    idx <- bracket expressionP
+    SAssignArr pos idt idx <$> assignTail
+  assignTail :: ParserT m Expression
+  assignTail = symbol "=" >> expressionP
 
 semiP' :: ConfigReader m => ParserT m Semi
 semiP' = do
@@ -263,50 +298,6 @@ semiP' = do
       Left err@(TrivialError _ unexpected expected) ->
         if expectSemi err then return Semi else failure unexpected expected
       Left (FancyError _ err) -> fancyFailure err
-
-
-blockStmtP :: ConfigReader m => ParserT m Statement
-blockStmtP = SBlock <$> getSourcePos <*> (block . many) statementP
-
-ifP :: ConfigReader m => ParserT m Statement
-ifP = do
-  pos <- getSourcePos
-  symbol "if"
-  predicate  <- paren expressionP
-  bodyClause <- statementP
-  symbol "else"
-  SIf pos predicate bodyClause <$> statementP
-
-whileP :: ConfigReader m => ParserT m Statement
-whileP = do
-  pos <- getSourcePos
-  symbol "while"
-  predicate <- paren expressionP
-  SWhile pos predicate <$> statementP
-
-printBodyP :: ParserT m Statement
-printBodyP = do
-  pos <- getSourcePos
-  symbol "System.out.println"
-  expr <- paren expressionP
-  return $ SPrint pos expr
-
-assignBodyP :: ParserT m Statement
-assignBodyP = do
-  pos <- getSourcePos
-  idt <- identifierP
-  SAssignId pos idt <$> assignTail
-
-arrayAssignBodyP :: ParserT m Statement
-arrayAssignBodyP = do
-  pos <- getSourcePos
-  idt <- identifierP
-  idx <- bracket expressionP
-  SAssignArr pos idt idx <$> assignTail
-
-assignTail :: ParserT m Expression
-assignTail = symbol "=" >> expressionP
-
 
 methodDecP :: ConfigReader m => ParserT m MethodDec
 methodDecP = label "Method Declaration" $ do
