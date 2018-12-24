@@ -1,5 +1,6 @@
 module MiniJava
   ( compileMiniJavaJSON
+  , Config(..)
   )
 where
 

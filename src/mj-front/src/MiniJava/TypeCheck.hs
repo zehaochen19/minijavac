@@ -27,14 +27,13 @@ emptySymbolTable = SymbolTable M.empty M.empty M.empty Nothing Nothing []
 
 initSymbolTable :: Monad m => S.MiniJavaAST -> TC m ()
 initSymbolTable ast = do
-  put SymbolTable
-    { _methods   = M.empty
-    , _classes   = fromClassDecs $ ast ^. S.classes
-    , _vars      = M.empty
-    , _curClass  = Nothing
-    , _curMethod = Nothing
-    , _errors    = []
-    }
+  put SymbolTable { _methods   = M.empty
+                  , _classes   = fromClassDecs $ ast ^. S.classes
+                  , _vars      = M.empty
+                  , _curClass  = Nothing
+                  , _curMethod = Nothing
+                  , _errors    = []
+                  }
   return ()
 
 checkMain :: Monad m => S.MainClass -> TC m ()
@@ -184,8 +183,8 @@ findVarType' i = do
         Just cInfo -> case M.lookup i (cInfo ^. cVars) of
           Nothing -> findInSuper
           Just c  -> return c
-            -- find var in superclass
          where
+          -- find var in superclass
           findInSuper = do
             let super = cInfo ^. superClass
             case super of
