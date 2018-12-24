@@ -65,6 +65,7 @@ checkVarsTypeScope varTable pos = do
   inScope :: ClassTable -> S.Type -> Bool
   inScope _          S.TInt          = True
   inScope _          S.TBool         = True
+  inScope _          S.TIntArray     = True
   inScope classTable (S.TClass idtf) = isJust $ M.lookup idtf classTable
 
 checkMethod :: Monad m => S.MethodDec -> TC m ()
