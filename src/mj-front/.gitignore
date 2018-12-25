@@ -1,7 +1,0 @@
-.stack-work/
-mj-front.cabal
-*~
-ghcid.txt
-.ghci
-.DS_Store
-*.json
