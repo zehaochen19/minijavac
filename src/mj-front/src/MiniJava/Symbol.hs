@@ -79,35 +79,35 @@ data Expression
 
 
 instance MiniJavaSymbol Expression where
-  sShow (EBinary  _ op e1 e2   ) = sShow e1 ++ " " ++ sShow op ++ " " ++ sShow e2
-  sShow (EArrayIndex _ arr idx ) = sShow arr ++ "[" ++ sShow idx ++ "]"
-  sShow (EArrayLength _ arr    ) = sShow arr ++ ".length"
+  sShow (EBinary _ op e1 e2   ) = sShow e1 ++ " " ++ sShow op ++ " " ++ sShow e2
+  sShow (EArrayIndex _ arr idx) = sShow arr ++ "[" ++ sShow idx ++ "]"
+  sShow (EArrayLength _ arr   ) = sShow arr ++ ".length"
   sShow (EMethodApp _ obj met args) =
     sShow obj ++ "." ++ sShow met ++ "(" ++ symbolsJoin ',' args ++ ")"
-  sShow (EInt _  i       ) = show i
-  sShow (EId  _ idtf     ) = sShow idtf
-  sShow (ETrue  _        ) = "true"
+  sShow (EInt _ i         ) = show i
+  sShow (EId  _ idtf      ) = sShow idtf
+  sShow (ETrue  _         ) = "true"
   sShow (EFalse _         ) = "false"
   sShow (EThis  _         ) = "this"
   sShow (ENewIntArr _ len ) = "new int[" ++ sShow len ++ "]"
-  sShow (ENewObj _     c  ) = "new " ++ sShow c ++ "()"
-  sShow (ENot       _ expr ) = '!' : sShow expr
-  sShow (EParen     _ expr ) = '(' : sShow expr ++ ")"
+  sShow (ENewObj    _ c   ) = "new " ++ sShow c ++ "()"
+  sShow (ENot       _ expr) = '!' : sShow expr
+  sShow (EParen     _ expr) = '(' : sShow expr ++ ")"
 
 instance WithPos Expression where
   getPos (EBinary pos _ _ _   ) = pos
-  getPos (EArrayIndex pos _ _  ) = pos
-  getPos (EArrayLength pos _   ) = pos
-  getPos (EMethodApp pos _ _ _ ) = pos
-  getPos (EInt  pos _           ) = pos
-  getPos (EId   pos _           ) = pos
+  getPos (EArrayIndex pos _ _ ) = pos
+  getPos (EArrayLength pos _  ) = pos
+  getPos (EMethodApp pos _ _ _) = pos
+  getPos (EInt pos _          ) = pos
+  getPos (EId  pos _          ) = pos
   getPos (ETrue  pos          ) = pos
   getPos (EFalse pos          ) = pos
   getPos (EThis  pos          ) = pos
-  getPos (ENewIntArr  pos _    ) = pos
-  getPos (ENewObj     pos _    ) = pos
-  getPos (ENot        pos _     ) = pos
-  getPos (EParen      pos _     ) = pos
+  getPos (ENewIntArr pos _    ) = pos
+  getPos (ENewObj    pos _    ) = pos
+  getPos (ENot       pos _    ) = pos
+  getPos (EParen     pos _    ) = pos
 
 
 -- Binary Operators
@@ -145,27 +145,27 @@ data Statement
   deriving (Eq, Show, Generic)
 
 instance WithPos Statement where
-  getPos (SBlock  pos _        ) = pos
-  getPos (SIf pos _ _ _        ) = pos
-  getPos (SWhile  pos _ _      ) = pos
-  getPos (SPrint pos _         ) = pos
-  getPos (SAssignId pos _ _    ) = pos
-  getPos (SAssignArr pos _ _ _ ) = pos
+  getPos (SBlock pos _        ) = pos
+  getPos (SIf pos _ _ _       ) = pos
+  getPos (SWhile pos _ _      ) = pos
+  getPos (SPrint pos _        ) = pos
+  getPos (SAssignId pos _ _   ) = pos
+  getPos (SAssignArr pos _ _ _) = pos
 
 instance MiniJavaSymbol Statement where
-  sShow (SBlock _ statements ) =
+  sShow (SBlock _ statements) =
     "{ " ++ foldr (\s str -> sShow s ++ " " ++ str) "" statements ++ " }"
-  sShow (SIf  _ pred trueClause falseClause) =
+  sShow (SIf _ pred trueClause falseClause) =
     "if ("
       ++ sShow pred
       ++ ") "
       ++ sShow trueClause
       ++ " else "
       ++ sShow falseClause
-  sShow (SWhile _ pred body    ) = "while (" ++ sShow pred ++ ") " ++ sShow body
-  sShow (SPrint  _ expr        ) = "System.out.println(" ++ sShow expr ++ ");"
-  sShow (SAssignId  _ idtf expr) = sShow idtf ++ " = " ++ sShow expr ++ ";"
-  sShow (SAssignArr _ arr idx value ) =
+  sShow (SWhile _ pred body   ) = "while (" ++ sShow pred ++ ") " ++ sShow body
+  sShow (SPrint _ expr        ) = "System.out.println(" ++ sShow expr ++ ");"
+  sShow (SAssignId _ idtf expr) = sShow idtf ++ " = " ++ sShow expr ++ ";"
+  sShow (SAssignArr _ arr idx value) =
     sShow arr ++ "[" ++ sShow idx ++ "] = " ++ sShow value ++ ";"
 
 
