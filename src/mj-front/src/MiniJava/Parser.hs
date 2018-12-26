@@ -45,12 +45,12 @@ parseFromSrc
   :: FilePath -> Config -> IO (Either (ParseErrorBundle Text Void) MiniJavaAST)
 parseFromSrc src cfg = do
   program <- TIO.readFile src
-  return $ parseFromText program cfg
+  return $ parseFromText program src cfg
 
 parseFromText
-  :: Text -> Config -> Either (ParseErrorBundle Text Void) MiniJavaAST
-parseFromText program cfg =
-  runIdentity $ R.runReaderT (runParserT miniJavaP "" program) cfg
+  :: Text -> String -> Config -> Either (ParseErrorBundle Text Void) MiniJavaAST
+parseFromText program filename cfg =
+  runIdentity $ R.runReaderT (runParserT miniJavaP filename program) cfg
 
 sc :: ParserT m ()
 sc = L.space space1 lineComment blockComment
