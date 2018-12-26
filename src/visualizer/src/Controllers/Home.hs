@@ -1,18 +1,29 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
 module Controllers.Home
-    ( index
-    ,postJava
-    
-    ) where
-import           Views.Home (homeView)
-import           Web.Scotty (ScottyM, get,post, html, json, file)
-import           Web.Scotty.Trans (jsonData, param)
-import           Data.Aeson (ToJSON,FromJSON)
+  ( index
+  , postJava
+  )
+where
+import           Views.Home                     ( homeView )
+import           Web.Scotty                     ( ScottyM
+                                                , get
+                                                , post
+                                                , html
+                                                , json
+                                                , file
+                                                )
+import           Web.Scotty.Trans               ( jsonData
+                                                , param
+                                                )
+import           Data.Aeson                     ( ToJSON
+                                                , FromJSON
+                                                )
 import           GHC.Generics
 
-import           MiniJava (postMiniJavaJSON)
+import           MiniJava                       ( postMiniJavaJSON )
 import           MiniJava.Config
+import qualified MiniJava.Parser               as P
 
 
 
@@ -33,6 +44,8 @@ post = get "/post" $ json $ Post 1 "Yello world"
 
 postJava = post "/java" $ do
   javaProgram <- param "java"
-  json $ postMiniJavaJSON javaProgram (Config False)
-  
-
+  let result = P.parseFromText' javaProgram (Config False)
+  json result
+  --case result of 
+  --Left err -> json err
+  --Right ast -> json ast

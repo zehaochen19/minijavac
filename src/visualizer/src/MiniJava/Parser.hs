@@ -8,6 +8,7 @@ module MiniJava.Parser
   , ParserT
   , parseFromSrc
   , parseFromText
+  , parseFromText'
   , identifierP
   , expressionP
   , statementP
@@ -40,7 +41,7 @@ import qualified Data.List.NonEmpty            as NE
 type Parser = Parsec Void Text
 type ParserT = ParsecT Void Text
 
-type ConfigReader =  R.MonadReader Config
+type ConfigReader = R.MonadReader Config
 
 parseFromSrc
   :: FilePath -> Config -> IO (Either (ParseErrorBundle Text Void) MiniJavaAST)
@@ -48,9 +49,17 @@ parseFromSrc src cfg = do
   program <- TIO.readFile src
   return $ runIdentity $ R.runReaderT (runParserT miniJavaP src program) cfg
 
-parseFromText :: Text -> Config -> IO (Either (ParseErrorBundle Text Void) MiniJavaAST)
+parseFromText
+  :: Text -> Config -> IO (Either (ParseErrorBundle Text Void) MiniJavaAST)
 parseFromText program cfg = do
-  return $ runIdentity $ R.runReaderT (runParserT miniJavaP "hello.world" program) cfg
+  return $ runIdentity $ R.runReaderT
+    (runParserT miniJavaP "hello.world" program)
+    cfg
+
+parseFromText'
+  :: Text -> Config -> Either (ParseErrorBundle Text Void) MiniJavaAST
+parseFromText' program cfg =
+  runIdentity $ R.runReaderT (runParserT miniJavaP "hello.world" program) cfg
 
 sc :: ParserT m ()
 sc = L.space space1 lineComment blockComment
