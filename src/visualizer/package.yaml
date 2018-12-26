@@ -1,0 +1,67 @@
+name: visualizer
+version: 0.1.0.0
+github: "githubuser/visualizer"
+license: BSD3
+author: "Author name here"
+maintainer: "example@example.com"
+copyright: "2018 Author name here"
+
+extra-source-files:
+  - README.md
+  - ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description: Please see the README on GitHub at <https://github.com/githubuser/visualizer#readme>
+
+dependencies:
+  - base >= 4.7 && < 5
+  - scotty
+  - wai-extra >=3.0.0
+  - wai-middleware-static
+  - clay
+  - text
+  - blaze-html
+  - blaze-markup
+  - aeson
+  - megaparsec
+  - parser-combinators
+  - vector
+  - containers
+  - cassava
+  - bytestring
+  - unordered-containers
+  - lens
+  - mtl
+  - hspec
+  - mj-front
+
+library:
+  source-dirs: src
+
+executables:
+  visualizer-exe:
+    main: Main.hs
+    source-dirs: app
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - visualizer
+
+tests:
+  visualizer-test:
+    main: Spec.hs
+    source-dirs: test
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - visualizer

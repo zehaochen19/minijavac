@@ -1,0 +1,202 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+
+<title>AST visualizer</title>
+
+<link rel="stylesheet" href="css/vtree.css" type="text/css"/>
+<link rel="stylesheet" href="css/bootstrap.min.css" type="text/css"/>
+<link rel="stylesheet" href="editor/built-editor.css" type="text/css" />
+<link rel="stylesheet" href="editor/esprima.foundation.min.css" type="text/css" />
+
+
+<script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+<script src="editor/built-editor.min.js"></script>
+<script src="editor/syntax.min.js"></script>
+<script src="js/vtree/dist/vtree.js"></script>
+<script src="js/bootstrap.min.js"></script>
+<script>
+
+function handleFileSelect(sevt) {
+    evt.stopPropagation();
+    evt.preventDefault();
+    var files = evt.dataTransfer.files; // FileList object.
+    // files is a FileList of File objects. List some properties.
+    var output = [];
+    for (var i = 0, f; f = files[i]; i++) {
+      
+      function process_ast(e) {
+      let lines = e.target.result;
+      document.getElementById("from-text").value=lines;   
+    }
+    fr = new FileReader();
+      fr.onload = process_ast;
+      fr.readAsText(f); 
+    }
+  
+  }
+function handleDragOver(evt) {
+    evt.stopPropagation();
+    evt.preventDefault();
+    evt.dataTransfer.dropEffect = 'copy'; // Explicitly show this is a copy.
+  }
+</script>
+<script type="text/javascript">
+var vt;
+
+window.onload = function () {
+  var container = document.getElementById("container");
+  var msg = document.getElementById("msg");
+  vt = new VTree(container);
+  var reader = new VTree.reader.Object();
+
+
+var codeEdit = new orion.codeEdit()
+codeEdit.create({parent: "astfiles", contentType: "application/javascript", contents: "nmslwsnd"}).then(function(editorViewer) {
+					if (editorViewer.settings) {
+						editorViewer.settings.contentAssistAutoTrigger = true;
+						editorViewer.settings.showOccurrences = true;
+          }
+});
+          
+  function updateTree() {
+
+    var s = document.getElementById("from-text").value;
+
+    msg.innerHTML = '';
+
+    try {
+      var jsonData = JSON.parse(s);
+    } catch (e) {
+      msg.innerHTML = 'Please input an AST';
+    }
+
+    var data = reader.read(jsonData);
+
+    vt.data(data)
+      .update();
+  }
+
+
+  document.getElementById("go-button").onclick = updateTree;
+
+  updateTree();
+};
+
+</script>
+
+</head>
+
+<body>
+  <div class="container-fluid">
+
+    <h1 ><span class="badge badge-secondary">AST visualizer</span></h1>
+    
+    <div id="drop_zone">Drop files here</div>
+    <output id="astfiles"></output>
+    <div style="margin-top: 1em;">
+
+      <div class="row">
+      <div class="col">
+        <h2 ><span class="badge badge-secondary">JSON</span></h2>
+      <pre id="from-text" >wsnd</pre>
+      <pre id="editor" class="editor" data-editor-lang="java" style="height: 450px">
+        package org.esjava.samples;
+        
+        abstract class Animal {
+            /*
+               Data Type Default Value (for fields)
+               boolean false
+               byte 0 short 0 int 0 long 0L 
+               float 0.0f double 0.0d
+               char '\u0000' 
+               String (or any object) null boolean false
+            */
+            final String name;
+            Animal(final String name) {
+                this.name = name;
+            }
+            static void MessageBox(String msg) {
+                // System.out.println(msg);
+                alert(msg);
+            }
+            void move(long meters) {
+                MessageBox(name + &quot; moved &quot; + meters + &quot;m.&quot;);
+            }
+            abstract void move();
+            static final char U_YIN_YANG = '\u262F'; // ☯
+            static final char U_CAUTION_SIGN = '\043'; // #
+        }
+        
+        class Snake extends Animal {
+            Snake(String name) {
+                super(name);
+            }
+        
+            @Override
+            void move() {
+                MessageBox(&quot;Slithering \u2621 ...&quot;);
+                super.move(3);
+            }
+        
+            @Override
+            void move(long meters) {
+                super.move(2 * meters);
+            }
+        }
+        
+        class Horse extends Animal {
+            Horse(String name) {
+                super(name);
+            }
+            @Override
+            void move() {
+                Horse.MessageBox(&quot;Galloping \041\u0021!&quot;);
+                super.move(-052l);
+            }
+        }
+        
+        public class BabelEvaluate {
+            public static void main(String[] args) {
+                Animal[] animals = new Animal[] {
+                    new Snake(Animal.U_CAUTION_SIGN + &quot;Sammy the Python&quot;), 
+                    new Horse(Animal.U_YIN_YANG + &quot;Tommy the Palomino&quot;)
+                };
+                for (int in = 0; in &lt; animals.length; in++) {
+                    animals[in].move();
+                    // animals[in].move(in + 5);
+                }
+            }
+        }
+        /* BabelEvaluate.main(42); */
+              </pre>
+    </div>
+
+    <div style="margin-top: 1em;">
+      <input class="btn btn-lg btn-secondary" id="go-button" type="button" value="Visualize" >
+    </div>
+</div>
+<div class="row">
+    <h2 ><span class="badge badge-secondary">AST</span></h2>
+
+    <div id="msg" style="color: black;"></div>
+
+    <div id="container"></div>
+
+    </div>
+    </div>  
+
+
+
+  </div>
+
+<script>
+  
+  var dropZone = document.getElementById('drop_zone');
+  dropZone.addEventListener('dragover', handleDragOver, false);
+  dropZone.addEventListener('drop', handleFileSelect, false);
+  </script>
+</body>
+
+</html>
