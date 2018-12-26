@@ -20,9 +20,8 @@ import           Data.Aeson                     ( ToJSON
                                                 , FromJSON
                                                 )
 import           GHC.Generics
-
-import           MiniJava                       ( postMiniJavaJSON )
 import           MiniJava.Config
+import           MiniJava.JSON
 import qualified MiniJava.Parser               as P
 
 
@@ -44,7 +43,7 @@ post = get "/post" $ json $ Post 1 "Yello world"
 
 postJava = post "/java" $ do
   javaProgram <- param "java"
-  let result = P.parseFromText' javaProgram (Config False)
+  let result = P.parseFromText javaProgram (Config False)
   json result
   --case result of 
   --Left err -> json err
