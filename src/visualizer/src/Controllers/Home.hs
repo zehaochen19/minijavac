@@ -18,6 +18,9 @@ import           Web.Scotty.Trans               ( jsonData
                                                 )
 import           Data.Aeson                     ( ToJSON
                                                 , FromJSON
+                                                , object
+                                                , (.=)
+                                                , Value
                                                 )
 import           GHC.Generics
 import           MiniJava.Config
@@ -52,8 +55,9 @@ postJava = post "/java" $ do
     Right ast -> do
       let checked = TC.typeCheck ast
       case checked of
-        []       -> json result
-        tcErrors -> json (Left tcErrors :: Either [T.Text] MiniJavaAST)
+        [] -> json result
+        tcErrors ->
+          json ((Left $ object ["errors" .= tcErrors]) :: Either Value Value)
 
   --json result
   --case result of 
