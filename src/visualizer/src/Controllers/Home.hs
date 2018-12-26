@@ -43,7 +43,7 @@ post = get "/post" $ json $ Post 1 "Yello world"
 
 postJava = post "/java" $ do
   javaProgram <- param "java"
-  let result = P.parseFromText javaProgram (Config False)
+  let result = P.parseFromText javaProgram "program.java" (Config False)
   json result
   --case result of 
   --Left err -> json err
