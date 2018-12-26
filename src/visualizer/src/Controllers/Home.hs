@@ -23,6 +23,9 @@ import           GHC.Generics
 import           MiniJava.Config
 import           MiniJava.JSON
 import qualified MiniJava.Parser               as P
+import qualified MiniJava.TypeCheck            as TC
+import qualified Data.Text                     as T
+import           MiniJava.Symbol               as S
 
 
 
@@ -44,7 +47,15 @@ post = get "/post" $ json $ Post 1 "Yello world"
 postJava = post "/java" $ do
   javaProgram <- param "java"
   let result = P.parseFromText javaProgram "program.java" (Config False)
-  json result
+  case result of
+    Left  err -> json result
+    Right ast -> do
+      let checked = TC.typeCheck ast
+      case checked of
+        []       -> json result
+        tcErrors -> json (Left tcErrors :: Either [T.Text] MiniJavaAST)
+
+  --json result
   --case result of 
   --Left err -> json err
   --Right ast -> json ast
