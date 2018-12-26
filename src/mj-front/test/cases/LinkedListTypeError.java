@@ -5,7 +5,7 @@ class LinkedList{
 }
 
 class Element {
-    int Age ;          
+    boolean Age ;          
     int Salary ;
     boolean Married ;
 
