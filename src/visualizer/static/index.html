@@ -12,57 +12,59 @@
 
 
 <script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
-<script src="editor/built-editor.min.js"></script>
-<script src="editor/syntax.min.js"></script>
+<script src="js/jquery-3.3.1.min.js"></script>
 <script src="js/vtree/dist/vtree.js"></script>
 <script src="js/bootstrap.min.js"></script>
-<script>
 
-function handleFileSelect(sevt) {
-    evt.stopPropagation();
-    evt.preventDefault();
-    var files = evt.dataTransfer.files; // FileList object.
-    // files is a FileList of File objects. List some properties.
-    var output = [];
-    for (var i = 0, f; f = files[i]; i++) {
-      
-      function process_ast(e) {
-      let lines = e.target.result;
-      document.getElementById("from-text").value=lines;   
+
+<script> 
+function filter_ast_tag(ast_json) {
+  var filter_ast={}
+  filter_ast["Program"]={"MainClass":{},"ClassDeclare":{}}
+  filter_ast.Program.MainClass=filter_tag(ast_json._mainClass._mainFunc)
+  filter_ast.Program.ClassDeclare=filter_tag(ast_json._classes)
+  for (p in ast_json){
+    if ("tag" in p){
+      current_tag=p["tag"]
+      filter_ast[current_tag]={}
+      if("contents" in p){
+        for (i in p["contents"]){
+          filter_ast[current_tag].push(filter_tag(i))
+        }
+      }
     }
-    fr = new FileReader();
-      fr.onload = process_ast;
-      fr.readAsText(f); 
+  }
+  return filter_ast;
+}
+
+function filter_tag(ast_json) {
+  var filter_ast={}
+  for (p in ast_json){
+    if ("tag" in p){
+      current_tag=p["tag"]
+      filter_ast[current_tag]={}
+      if("contents" in p){
+        for (i in p["contents"]){
+          filter_ast[current_tag].push(filter_tag(i))
+        }
+      }
     }
-  
   }
-function handleDragOver(evt) {
-    evt.stopPropagation();
-    evt.preventDefault();
-    evt.dataTransfer.dropEffect = 'copy'; // Explicitly show this is a copy.
-  }
+  return filter_ast;
+}
 </script>
 <script type="text/javascript">
 var vt;
 
 window.onload = function () {
-  var container = document.getElementById("container");
+  var container = document.getElementById("ast");
   var msg = document.getElementById("msg");
   vt = new VTree(container);
   var reader = new VTree.reader.Object();
-
-
-var codeEdit = new orion.codeEdit()
-codeEdit.create({parent: "astfiles", contentType: "application/javascript", contents: "nmslwsnd"}).then(function(editorViewer) {
-					if (editorViewer.settings) {
-						editorViewer.settings.contentAssistAutoTrigger = true;
-						editorViewer.settings.showOccurrences = true;
-          }
-});
           
   function updateTree() {
 
-    var s = document.getElementById("from-text").value;
+    var s = document.getElementById("astjson").value;
 
     msg.innerHTML = '';
 
@@ -81,10 +83,51 @@ codeEdit.create({parent: "astfiles", contentType: "application/javascript", cont
 
   document.getElementById("go-button").onclick = updateTree;
 
-  updateTree();
 };
 
 </script>
+
+<script>
+
+
+
+
+    function handleFileSelect(evt) {
+        evt.stopPropagation();
+        evt.preventDefault();
+        var files = evt.dataTransfer.files; // FileList object.
+        // files is a FileList of File objects. List some properties.
+        var output = [];
+        for (var i = 0, f; f = files[i]; i++) {
+          function process_ast(e) {
+          let lines = e.target.result;
+          $.post("java",{ java: lines},function(data){
+            console.log(data);
+            document.getElementById("astjson").value="";
+            document.getElementById("msg").innerHTML="";
+            if ("Right" in data){
+              document.getElementById("astjson").value=JSON.stringify((data["Right"]));
+              
+            }
+            else{
+              document.getElementById("msg").innerHTML=
+              "<div class=\"alert alert-primary\" role=\"alert\">"+data.Left.errors+"</div>";
+            }
+            })
+          
+        }
+        fr = new FileReader();
+          fr.onload = process_ast;
+          fr.readAsText(f); 
+        }
+      
+      }
+    function handleDragOver(evt) {
+        evt.stopPropagation();
+        evt.preventDefault();
+        evt.dataTransfer.dropEffect = 'copy'; // Explicitly show this is a copy.
+      }
+    </script>
 
 </head>
 
@@ -100,77 +143,8 @@ codeEdit.create({parent: "astfiles", contentType: "application/javascript", cont
       <div class="row">
       <div class="col">
         <h2 ><span class="badge badge-secondary">JSON</span></h2>
-      <pre id="from-text" >wsnd</pre>
-      <pre id="editor" class="editor" data-editor-lang="java" style="height: 450px">
-        package org.esjava.samples;
-        
-        abstract class Animal {
-            /*
-               Data Type Default Value (for fields)
-               boolean false
-               byte 0 short 0 int 0 long 0L 
-               float 0.0f double 0.0d
-               char '\u0000' 
-               String (or any object) null boolean false
-            */
-            final String name;
-            Animal(final String name) {
-                this.name = name;
-            }
-            static void MessageBox(String msg) {
-                // System.out.println(msg);
-                alert(msg);
-            }
-            void move(long meters) {
-                MessageBox(name + &quot; moved &quot; + meters + &quot;m.&quot;);
-            }
-            abstract void move();
-            static final char U_YIN_YANG = '\u262F'; // ☯
-            static final char U_CAUTION_SIGN = '\043'; // #
-        }
-        
-        class Snake extends Animal {
-            Snake(String name) {
-                super(name);
-            }
-        
-            @Override
-            void move() {
-                MessageBox(&quot;Slithering \u2621 ...&quot;);
-                super.move(3);
-            }
-        
-            @Override
-            void move(long meters) {
-                super.move(2 * meters);
-            }
-        }
-        
-        class Horse extends Animal {
-            Horse(String name) {
-                super(name);
-            }
-            @Override
-            void move() {
-                Horse.MessageBox(&quot;Galloping \041\u0021!&quot;);
-                super.move(-052l);
-            }
-        }
-        
-        public class BabelEvaluate {
-            public static void main(String[] args) {
-                Animal[] animals = new Animal[] {
-                    new Snake(Animal.U_CAUTION_SIGN + &quot;Sammy the Python&quot;), 
-                    new Horse(Animal.U_YIN_YANG + &quot;Tommy the Palomino&quot;)
-                };
-                for (int in = 0; in &lt; animals.length; in++) {
-                    animals[in].move();
-                    // animals[in].move(in + 5);
-                }
-            }
-        }
-        /* BabelEvaluate.main(42); */
-              </pre>
+      <textarea id="astjson" rows="6" cols="80"></textarea>
+      
     </div>
 
     <div style="margin-top: 1em;">
@@ -182,7 +156,7 @@ codeEdit.create({parent: "astfiles", contentType: "application/javascript", cont
 
     <div id="msg" style="color: black;"></div>
 
-    <div id="container"></div>
+    <div id="ast"></div>
 
     </div>
     </div>  
