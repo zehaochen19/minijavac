@@ -130,7 +130,7 @@ identifierP = (lexeme . try) (p >>= check) <?> "Ideintifier"
       <*> letterChar
       <*> many (char '_' <|> alphaNumChar)
   check x = if x `S.member` reserved
-    then fail $ "keyword" ++ show x ++ " cannot be an identifier"
+    then fail $ "keyword " ++ show x ++ " cannot be an identifier"
     else return $ Identifier x
 
 expressionListP :: ParserT m [Expression]
