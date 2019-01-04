@@ -6,5 +6,5 @@ Front end part of minijavac
 
 ```
 stack build
-stack exec mj-front-exec src.java output.json [fix]
+stack exec mj-front-exe src.java output.json [fix]
 ```
