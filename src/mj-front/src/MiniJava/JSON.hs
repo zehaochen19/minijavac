@@ -12,6 +12,7 @@ import           MiniJava.TypeCheck            as TC
 import qualified Text.Megaparsec.Error         as ME
 import qualified Data.Text                     as T
 import qualified Data.Text.IO                  as TIO
+import qualified Data.List                     as L
 
 instance ToJSON Identifier
 
@@ -53,5 +54,5 @@ compileToJSON src cfg = do
       case checked of
         []       -> return $ encode ast
         tcErrors -> do
-          mapM_ TIO.putStrLn tcErrors
+          mapM_ TIO.putStrLn $ L.intersperse "\n" tcErrors
           return $ encode $ object ["errors" .= tcErrors]
