@@ -19,6 +19,14 @@ MiniJava compiler course project
 
 ### 王郑阳
 
+- UID: 15307130164
+- Contributions
+  - Graphics and Visualization
+    - Web front-end & back-end
+    - AST Visualization
+  - Error Report
+    - User-friendly
+    
 ## Dependency
 
 **IMPORTANT**
@@ -56,6 +64,7 @@ stack test
 
 Firstly, the backend server should be started
 
+
 ```shell
 cd src/visualizer
 stack build
@@ -65,3 +74,5 @@ stack exec visualizer-exe
 Open your favorite browser and mount at <localhost:3000>
 
 Drop your favorite MiniJava program to the box and view its graphic AST output
+
+Any error will be displayed below the AST tag.
